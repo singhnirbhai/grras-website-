@@ -1,0 +1,22 @@
+
+services:
+  next-app:
+    build:
+      context: .
+    ports:
+      - "3000:3000"
+    networks:
+      - nextjs
+    env_file:
+      - .env.local
+      
+
+    healthcheck:
+      test: ["CMD","curl","-f","http://localhost"]
+      interval: 20s
+      timeout: 30s
+      retries: 5
+
+networks:
+  nextjs:
+    driver: bridge
