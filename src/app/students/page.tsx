@@ -413,13 +413,13 @@ export default function StudentsPage() {
                     <th onClick={() => handleSort("batch")} style={{ padding: "16px 24px", cursor: "pointer", userSelect: "none" }}>Batch {renderSortIndicator("batch")}</th>
                     <th onClick={() => handleSort("course")} style={{ padding: "16px 24px", cursor: "pointer", userSelect: "none" }}>Course {renderSortIndicator("course")}</th>
                     <th onClick={() => handleSort("assignedAt")} style={{ padding: "16px 24px", cursor: "pointer", userSelect: "none" }}>Assigned Date & Time {renderSortIndicator("assignedAt")}</th>
-                    {user?.role === "admin" && <th style={{ padding: "16px 24px", textAlign: "right" }}>Actions</th>}
+                    {(user?.role === "admin" || user?.role === "faculty") && <th style={{ padding: "16px 24px", textAlign: "right" }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={user?.role === "admin" ? 7 : 6} style={{ padding: "32px", textAlign: "center", color: "hsl(var(--text-muted))" }}>No students registered.</td>
+                      <td colSpan={(user?.role === "admin" || user?.role === "faculty") ? 7 : 6} style={{ padding: "32px", textAlign: "center", color: "hsl(var(--text-muted))" }}>No students registered.</td>
                     </tr>
                   ) : (
                     paginatedStudents.map((student: any, idx: number) => (
@@ -432,7 +432,7 @@ export default function StudentsPage() {
                         <td style={{ padding: "16px 24px", color: "hsl(var(--text-secondary))" }}>
                           {student.assignedAt ? new Date(student.assignedAt).toLocaleString() : "Not assigned"}
                         </td>
-                        {user?.role === "admin" && (
+                        {(user?.role === "admin" || user?.role === "faculty") && (
                           <td style={{ padding: "16px 24px", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                               <button onClick={() => handleOpenEditStudent(student)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>

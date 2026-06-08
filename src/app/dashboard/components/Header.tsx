@@ -48,6 +48,7 @@ export const Header = memo(({
     >
       <button
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+        className="header-toggle-btn"
         style={{
           background: "none",
           border: "none",
@@ -60,14 +61,14 @@ export const Header = memo(({
 
       <div
         ref={dropdownRef}
-        style={{ position: "relative" }}
+        style={{ position: "relative", marginLeft: "auto" }}
       >
         <div
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           style={{ display: "flex", alignItems: "center", gap: "12px", cursor: "pointer" }}
           title="Account Menu"
         >
-          <div style={{ textAlign: "right" }}>
+          <div className="header-user-info" style={{ textAlign: "right" }}>
             <div style={{ fontWeight: 700, fontSize: "14px" }}>{user?.name}</div>
             <div style={{ fontSize: "11px", color: "hsl(var(--text-secondary))", textTransform: "uppercase", fontWeight: 700 }}>
               {user?.role} {user?.course && `• ${user?.course}`}

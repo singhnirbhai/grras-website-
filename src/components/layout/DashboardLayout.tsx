@@ -22,9 +22,27 @@ interface AuthUser {
 
 export default function DashboardLayout({ children, activeTab }: DashboardLayoutProps) {
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    if (typeof window !== "undefined") {
+      const cached = sessionStorage.getItem("auth_user");
+      return cached ? JSON.parse(cached) : null;
+    }
+    return null;
+  });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("sidebar_open");
+      if (saved !== null) return saved === "true";
+      return window.innerWidth > 1024;
+    }
+    return true;
+  });
+  const [isCheckingAuth, setIsCheckingAuth] = useState(() => {
+    if (typeof window !== "undefined") {
+      return !sessionStorage.getItem("auth_user");
+    }
+    return true;
+  });
 
   useEffect(() => {
     fetch("/api/auth/profile")
@@ -32,11 +50,16 @@ export default function DashboardLayout({ children, activeTab }: DashboardLayout
       .then((data) => {
         if (data.isSuccess && data.user) {
           setUser(data.user);
+          sessionStorage.setItem("auth_user", JSON.stringify(data.user));
         } else {
+          sessionStorage.removeItem("auth_user");
           router.push("/");
         }
       })
-      .catch(() => router.push("/"))
+      .catch(() => {
+        sessionStorage.removeItem("auth_user");
+        router.push("/");
+      })
       .finally(() => {
         setIsCheckingAuth(false);
       });
@@ -47,7 +70,8 @@ export default function DashboardLayout({ children, activeTab }: DashboardLayout
       if (window.innerWidth <= 1024) {
         setIsSidebarOpen(false);
       } else {
-        setIsSidebarOpen(true);
+        const saved = localStorage.getItem("sidebar_open");
+        setIsSidebarOpen(saved !== null ? saved === "true" : true);
       }
     };
     
@@ -57,6 +81,13 @@ export default function DashboardLayout({ children, activeTab }: DashboardLayout
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  const handleToggleSidebar = (open: boolean) => {
+    setIsSidebarOpen(open);
+    if (typeof window !== "undefined" && window.innerWidth > 1024) {
+      localStorage.setItem("sidebar_open", open ? "true" : "false");
+    }
+  };
 
   useEffect(() => {
     if (window.innerWidth <= 1024) {
@@ -75,6 +106,7 @@ export default function DashboardLayout({ children, activeTab }: DashboardLayout
     });
 
     if (confirm.isConfirmed) {
+      sessionStorage.removeItem("auth_user");
       await fetch("/api/auth/logout", { method: "POST" });
       router.push("/");
     }
@@ -111,7 +143,7 @@ export default function DashboardLayout({ children, activeTab }: DashboardLayout
       )}
       <Sidebar 
         isSidebarOpen={isSidebarOpen} 
-        setIsSidebarOpen={setIsSidebarOpen} 
+        setIsSidebarOpen={handleToggleSidebar} 
         activeTab={activeTab} 
         setActiveTab={(tabId) => {
           // In top-level routes routing, we push URL directly:
@@ -125,7 +157,7 @@ export default function DashboardLayout({ children, activeTab }: DashboardLayout
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", height: "100vh" }}>
         <Header 
           isSidebarOpen={isSidebarOpen} 
-          setIsSidebarOpen={setIsSidebarOpen} 
+          setIsSidebarOpen={handleToggleSidebar} 
           user={user} 
           onProfileClick={() => {
             router.push("/profile");
@@ -134,7 +166,7 @@ export default function DashboardLayout({ children, activeTab }: DashboardLayout
         />
 
         {/* Dashboard Body views */}
-        <div className="main-content-responsive" style={{ flex: 1, padding: "32px", maxWidth: "1200px", width: "100%", margin: "0 auto" }}>
+        <div className="main-content-responsive" style={{ flex: 1, padding: "32px", width: "100%" }}>
           {children}
         </div>
       </div>

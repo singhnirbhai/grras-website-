@@ -23,4 +23,6 @@ const facultySchema = new Schema(
   { timestamps: true }
 );
 
+facultySchema.index({ course: 1 });
+
 export const Faculty = models.Faculty || model("Faculty", facultySchema);

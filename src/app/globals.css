@@ -234,8 +234,20 @@ body {
   color: hsl(var(--primary));
 }
 
+.header-toggle-btn {
+  display: none !important;
+}
+
 /* Responsive Utilities */
 @media (max-width: 1024px) {
+  .header-toggle-btn {
+    display: block !important;
+  }
+
+  .header-user-info {
+    display: none !important;
+  }
+
   .dashboard-layout {
     position: relative !important;
   }
@@ -267,6 +279,14 @@ body {
   
   .main-content-responsive {
     padding: 16px !important;
+  }
+
+  .mobile-close-btn {
+    display: block !important;
+  }
+
+  .desktop-toggle-btn {
+    display: none !important;
   }
 }
 

@@ -39,7 +39,8 @@ const studentSchema = new Schema(
   { timestamps: true }
 );
 
-studentSchema.index({ course: 1 });
+studentSchema.index({ course: 1, batch: 1 });
+studentSchema.index({ createdBy: 1 });
 
 if (models.student) {
   delete (models as any).student;

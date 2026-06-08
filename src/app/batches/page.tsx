@@ -195,7 +195,7 @@ export default function BatchesPage() {
             </div>
           </div>
           <form onSubmit={handleCreateBatch} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "24px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                 <label style={{ fontSize: "11px", fontWeight: 700, color: "hsl(var(--text-secondary))" }}>Batch Name <span style={{ color: "hsl(var(--danger))" }}>*</span></label>
                 <input type="text" placeholder="Batch Name (e.g. Python-Evening)" value={batchForm.name} onChange={(e) => setBatchForm({ ...batchForm, name: e.target.value })} className="input-field" style={{ border: formErrors.name ? "1px solid hsl(var(--danger))" : "1px solid hsl(var(--border-color))" }} />
@@ -212,7 +212,7 @@ export default function BatchesPage() {
             </div>
             {batchForm.course && (
               <>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "24px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
                   <CustomDropdown label="Assign Faculty" value={batchForm.faculty} options={faculties.filter((f: any) => f.course?.toLowerCase() === batchForm.course?.toLowerCase()).map((f: any) => ({ label: `${f.name} (${f.email})`, value: f.email }))} onChange={(val) => setBatchForm({ ...batchForm, faculty: val })} placeholder="-- Select Faculty (Optional) --" error={formErrors.faculty} />
                   <CustomMultiSelect label="Assign Students" selected={batchForm.students} options={students.filter((s: any) => s.course?.toLowerCase() === batchForm.course?.toLowerCase()).map((s: any) => ({ label: `${s.name} (${s.email})`, value: s.userId }))} onChange={(vals) => {
                     if (user?.role === "faculty" && editingBatchId) {
@@ -226,7 +226,7 @@ export default function BatchesPage() {
                     setBatchForm({ ...batchForm, students: vals });
                   }} error={formErrors.students} />
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "24px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
                   <CustomMultiSelect label="Batch Schedule Days" selected={batchForm.days} options={DAY_OPTIONS} onChange={(vals) => setBatchForm({ ...batchForm, days: vals })} />
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                     <label style={{ fontSize: "11px", fontWeight: 700, color: "hsl(var(--text-secondary))" }}>Batch Timings</label>

@@ -37,7 +37,7 @@ export async function GET(request: Request) {
       };
     }
 
-    const students = await Student.find(query).sort({ createdAt: -1 });
+    const students = await Student.find(query).select("-password").sort({ createdAt: -1 });
 
     return NextResponse.json({
       isSuccess: true,

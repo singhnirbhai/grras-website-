@@ -393,7 +393,7 @@ export default function QuizzesPage() {
 
           {selectedFileForSchedule ? (
             <form onSubmit={handleUpdateSchedule} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "24px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                   <label style={{ fontSize: "11px", fontWeight: 700, color: "hsl(var(--text-secondary))" }}>Start Time <span style={{ color: "hsl(var(--danger))" }}>*</span></label>
                   <input type="datetime-local" value={scheduleForm.startTime} onChange={(e) => setScheduleForm({ ...scheduleForm, startTime: e.target.value })} onClick={(e) => e.currentTarget.showPicker()} className="input-field" style={{ border: formErrors.startTime ? "1px solid hsl(var(--danger))" : "1px solid hsl(var(--border-color))" }} />
@@ -416,7 +416,7 @@ export default function QuizzesPage() {
             </form>
           ) : (
             <form onSubmit={processUpload} style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(350px, 1fr))", gap: "24px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" }}>
                 <CustomDropdown label="Target Batch" value={uploadForm.batch} options={batches.filter((b: any) => user?.role === "admin" || b.course?.toLowerCase().trim() === user?.course?.toLowerCase().trim()).map((b: any) => ({ label: `${b.name} (${b.course})`, value: b.name }))} onChange={(val) => { const b = batches.find((b: any) => b.name === val); setUploadForm({ ...uploadForm, batch: b?.name || "", course: b?.course || "" }); }} required error={formErrors.batch} />
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
                   <label style={{ fontSize: "11px", fontWeight: 700, color: "hsl(var(--text-secondary))" }}>File Label <span style={{ color: "hsl(var(--danger))" }}>*</span></label>
