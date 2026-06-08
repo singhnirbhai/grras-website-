@@ -37,6 +37,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ isSuccess: false, message: "No quizzes found for this file" }, { status: 404 });
     }
 
+    // Check if the submission time is past the exam's endTime (+ 120 seconds network grace period)
+    const firstQuiz = quizzes[0];
+    if (firstQuiz && firstQuiz.endTime) {
+      const submissionTime = moment().tz("Asia/Kolkata").unix();
+      const endLimitTime = moment(firstQuiz.endTime).tz("Asia/Kolkata").unix() + 120; // 120s grace period
+      if (submissionTime > endLimitTime) {
+        return NextResponse.json({
+          isSuccess: false,
+          message: "Submission rejected. The exam time slot has already ended."
+        }, { status: 403 });
+      }
+    }
+
     let correctCount = 0;
     const results: any[] = [];
 

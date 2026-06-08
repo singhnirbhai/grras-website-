@@ -80,7 +80,7 @@ export const studentWelcomeTemplate = (studentData: {
                   <table border="0" cellpadding="0" cellspacing="0" width="100%">
                     <tr>
                       <td align="center" style="padding-top: 16px;">
-                        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:400'}" class="cta-button" target="_blank" style="display: inline-block; background-color: #16a34a; color: #ffffff !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2); text-align: center;">Access Student Portal</a>
+                        <a href="${process.env.ACCESS_PORTAL_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" class="cta-button" target="_blank" style="display: inline-block; background-color: #16a34a; color: #ffffff !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2); text-align: center;">Access Student Portal</a>
                       </td>
                     </tr>
                   </table>
@@ -202,7 +202,7 @@ export const facultyWelcomeTemplate = (facultyData: {
                   <table border="0" cellpadding="0" cellspacing="0" width="100%">
                     <tr>
                       <td align="center" style="padding-top: 16px;">
-                        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:400'}" class="cta-button" target="_blank" style="display: inline-block; background-color: #16a34a; color: #ffffff !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2); text-align: center;">Access Faculty Portal</a>
+                        <a href="${process.env.ACCESS_PORTAL_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" class="cta-button" target="_blank" style="display: inline-block; background-color: #16a34a; color: #ffffff !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2); text-align: center;">Access Faculty Portal</a>
                       </td>
                     </tr>
                   </table>
@@ -353,7 +353,7 @@ export const resultTemplate = (
                   <table border="0" cellpadding="0" cellspacing="0" width="100%">
                     <tr>
                       <td align="center" style="padding-top: 32px;">
-                        <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:400'}" class="cta-button" target="_blank" style="display: inline-block; background-color: #16a34a; color: #ffffff !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2); text-align: center;">Access Portal Dashboard</a>
+                        <a href="${process.env.ACCESS_PORTAL_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}" class="cta-button" target="_blank" style="display: inline-block; background-color: #16a34a; color: #ffffff !important; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 15px; box-shadow: 0 4px 10px rgba(22, 163, 74, 0.2); text-align: center;">Access Portal Dashboard</a>
                       </td>
                     </tr>
                   </table>

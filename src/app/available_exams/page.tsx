@@ -107,9 +107,51 @@ export default function AvailableExamsPage() {
         Options: shuffleArray(q.Options || []),
       }));
 
+      // Check if there is saved progress in localStorage
+      const savedAnswersStr = localStorage.getItem(`quiz_answers_${user?.id}_${file.fileName}`);
+      const savedDeadlineStr = localStorage.getItem(`quiz_deadline_${user?.id}_${file.fileName}`);
+
+      let initialAnswers = {};
+      let calculatedTimeLeft = file.duration * 60; // default in seconds
+
+      const nowUnix = moment().tz("Asia/Kolkata").unix();
+      const endUnix = moment(file.endTime).tz("Asia/Kolkata").unix();
+      const remainingSlotSeconds = Math.max(0, endUnix - nowUnix);
+
+      if (savedAnswersStr && savedDeadlineStr) {
+        // Resume previous session
+        const savedDeadline = parseInt(savedDeadlineStr, 10);
+        const secondsLeft = savedDeadline - nowUnix;
+        if (secondsLeft > 0) {
+          calculatedTimeLeft = Math.min(secondsLeft, remainingSlotSeconds);
+          try {
+            initialAnswers = JSON.parse(savedAnswersStr);
+          } catch (e) {
+            console.error("Failed to parse saved answers", e);
+          }
+        } else {
+          // If saved deadline has already passed
+          calculatedTimeLeft = 0;
+        }
+      } else {
+        // New session: enforce strict time slot limit if remaining time is less than quiz duration
+        calculatedTimeLeft = Math.min(file.duration * 60, remainingSlotSeconds);
+        const deadlineUnix = nowUnix + calculatedTimeLeft;
+        if (user?.id) {
+          localStorage.setItem(`quiz_deadline_${user.id}_${file.fileName}`, deadlineUnix.toString());
+          localStorage.setItem(`quiz_answers_${user.id}_${file.fileName}`, JSON.stringify({}));
+        }
+      }
+
+      // If time left is 0 or negative, auto-submit right away
+      if (calculatedTimeLeft <= 0) {
+        Swal.fire("Exam Over", "The time slot for this exam has already ended.", "warning");
+        return;
+      }
+
       setActiveExamFile(file.fileName);
-      setTimeLeft(file.duration * 60);
-      setAnswers({});
+      setTimeLeft(calculatedTimeLeft);
+      setAnswers(initialAnswers);
       setCurrentQuestion(0);
       setExamQuestions(randomizedQuestions);
       setExamStarted(true);
@@ -117,6 +159,14 @@ export default function AvailableExamsPage() {
       Swal.fire("Error", "Failed to start exam", "error");
     } finally {
       setIsLoadingManual(false);
+    }
+  };
+
+  const handleSelectAnswer = (qId: string, opt: string) => {
+    const updated = { ...answers, [qId]: opt };
+    setAnswers(updated);
+    if (user?.id && activeExamFile) {
+      localStorage.setItem(`quiz_answers_${user.id}_${activeExamFile}`, JSON.stringify(updated));
     }
   };
 
@@ -175,6 +225,11 @@ export default function AvailableExamsPage() {
       Swal.fire("Error", "Failed to submit exam", "error");
     } finally {
       setIsLoadingManual(false);
+      // Clean up localStorage for this specific quiz & user
+      if (user?.id && activeExamFile) {
+        localStorage.removeItem(`quiz_deadline_${user.id}_${activeExamFile}`);
+        localStorage.removeItem(`quiz_answers_${user.id}_${activeExamFile}`);
+      }
     }
   };
 
@@ -213,7 +268,7 @@ export default function AvailableExamsPage() {
               </p>
             </div>
 
-            {/* Options Grid */}
+             {/* Options Grid */}
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "40px" }}>
               {examQuestions[currentQuestion]?.Options.map((opt: string, idx: number) => {
                 const qId = examQuestions[currentQuestion]._id;
@@ -221,7 +276,7 @@ export default function AvailableExamsPage() {
                 return (
                   <button
                     key={idx}
-                    onClick={() => setAnswers({ ...answers, [qId]: opt })}
+                    onClick={() => handleSelectAnswer(qId, opt)}
                     style={{
                       padding: "16px 20px",
                       textAlign: "left",
