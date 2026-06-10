@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import jwt from "jsonwebtoken";
 import { connectDB } from "@/lib/db";
 import { MasterAdmin } from "@/models/MasterAdmin";
@@ -48,13 +48,19 @@ export async function POST(request: Request) {
     const url = new URL(request.url);
     const resetLink = `${url.origin}/reset-password?token=${token}&role=${role}`;
 
-    // Send Reset Link email in background
-    sendMail(
-      normalizedEmail,
-      process.env.mail || "noreply@yourplatform.com",
-      "Reset Your Password",
-      resetPasswordTemplate(resetLink)
-    ).catch((err) => console.error("Forgot password email error:", err));
+    // Send Reset Link email in the background after returning the response
+    after(async () => {
+      try {
+        await sendMail(
+          normalizedEmail,
+          process.env.mail || "noreply@yourplatform.com",
+          "Reset Your Password",
+          resetPasswordTemplate(resetLink)
+        );
+      } catch (err) {
+        console.error("Forgot password email error in background:", err);
+      }
+    });
 
     return NextResponse.json({
       isSuccess: true,

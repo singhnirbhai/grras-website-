@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/db";
 import { Student } from "@/models/Student";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { sendMail } from "@/lib/sendMail";
 import { measure, nextResponseWithTiming } from "@/lib/perf";
+import { studentWelcomeTemplate } from "@/lib/mailTemplates";
 
 export async function GET(request: Request) {
   const startTime = performance.now();
@@ -117,21 +118,25 @@ export async function POST(request: Request) {
 
     await student.save();
 
-    // Send welcome email asynchronously without blocking the response
-    import("@/lib/mailTemplates").then(({ studentWelcomeTemplate }) => {
-      const emailHtml = studentWelcomeTemplate({
-        name,
-        email: normalizedEmail,
-        password,
-        userId,
-      });
+    // Send welcome email in background after returning the response
+    const emailHtml = studentWelcomeTemplate({
+      name,
+      email: normalizedEmail,
+      password,
+      userId,
+    });
 
-      sendMail(
-        normalizedEmail,
-        process.env.mail || "noreply@yourplatform.com",
-        "🎓 Welcome to Academic Platform - Student Account Details",
-        emailHtml
-      ).catch((err) => console.error("Error sending student welcome email:", err));
+    after(async () => {
+      try {
+        await sendMail(
+          normalizedEmail,
+          process.env.mail || "noreply@yourplatform.com",
+          "🎓 Welcome to Academic Platform - Student Account Details",
+          emailHtml
+        );
+      } catch (err) {
+        console.error("Student welcome email error in background:", err);
+      }
     });
 
     return NextResponse.json({
