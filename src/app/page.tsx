@@ -172,6 +172,7 @@ export default function LoginPage() {
 
         {/* Role Selector Tabs */}
         <div
+          className="login-role-tabs"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(3, 1fr)",

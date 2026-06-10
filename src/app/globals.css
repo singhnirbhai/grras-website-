@@ -371,9 +371,9 @@ table td {
 
 /* Global Mobile Responsiveness Helper Rules */
 @media (max-width: 768px) {
-  /* Collapse all display grid forms & layouts to a single column, excluding the calendar grid */
-  div[style*="display: grid"]:not(.calendar-grid), 
-  div[style*="display:grid"]:not(.calendar-grid) {
+  /* Collapse all display grid forms & layouts to a single column, excluding the calendar grid and login tabs */
+  div[style*="display: grid"]:not(.calendar-grid):not(.login-role-tabs), 
+  div[style*="display:grid"]:not(.calendar-grid):not(.login-role-tabs) {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
   }
