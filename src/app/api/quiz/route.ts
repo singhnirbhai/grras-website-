@@ -23,14 +23,14 @@ export async function GET(request: Request) {
     if (fileName) {
       const isStudent = user.role === "student";
       // Exclude correct answer for students
-      const query = Quiz.find({ fileName });
+      const query = Quiz.find({ fileName }).lean();
       if (isStudent) {
         query.select("-CorrectAnswer");
       }
       const quizzes = await query;
 
-      const formattedQuizzes = quizzes.map((quiz) => ({
-        ...quiz.toObject(),
+      const formattedQuizzes = quizzes.map((quiz: any) => ({
+        ...quiz,
         startTime: moment(quiz.startTime).tz("Asia/Kolkata").format(),
         endTime: moment(quiz.endTime).tz("Asia/Kolkata").format(),
       }));
@@ -49,7 +49,7 @@ export async function GET(request: Request) {
       if (!includeExpired) {
         queryObj.isExpired = false;
       }
-      const activeQuizzes = await Quiz.find(queryObj);
+      const activeQuizzes = await Quiz.find(queryObj).lean();
 
       const groupedQuizzes: Record<string, any> = {};
       const now = moment().tz("Asia/Kolkata");
@@ -91,6 +91,13 @@ export async function GET(request: Request) {
     }
 
     // Case 3: Admin or Faculty fetching all quiz files (aggregate group)
+    const page = searchParams.get("page") ? parseInt(searchParams.get("page")!) : null;
+    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : null;
+    const search = searchParams.get("search") || "";
+
+    const filterBatch = searchParams.get("batch") || "";
+    const filterFaculty = searchParams.get("faculty") || "";
+
     let matchQuery: any = {};
     if (user.role === "faculty") {
       const BatchModel = (await import("@/models/Batch")).Batch;
@@ -99,18 +106,40 @@ export async function GET(request: Request) {
           { faculty: { $regex: new RegExp(`^${user.email.trim()}$`, "i") } },
           { faculty: { $regex: new RegExp(`^${user.name?.trim()}$`, "i") } }
         ]
-      }).select("name");
+      }).select("name").lean();
       const batchNames = facultyBatches.map(b => b.name);
 
       matchQuery = {
         Course: user.course?.toLowerCase().trim(),
         batch: { $in: batchNames }
       };
-    } else if (course) {
-      matchQuery = { Course: course.toLowerCase().trim() };
+    } else {
+      if (course) {
+        matchQuery.Course = course.toLowerCase().trim();
+      }
+      if (filterBatch) {
+        matchQuery.batch = filterBatch.trim();
+      }
+      if (filterFaculty) {
+        const BatchModel = (await import("@/models/Batch")).Batch;
+        const facultyBatches = await BatchModel.find({
+          faculty: { $regex: new RegExp(`^${filterFaculty.trim()}$`, "i") }
+        }).select("name").lean();
+        const batchNames = facultyBatches.map(b => b.name);
+        matchQuery.batch = { $in: batchNames };
+      }
     }
 
-    const aggregated = await Quiz.aggregate([
+    if (search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      matchQuery.$or = [
+        { fileName: { $regex: searchRegex } },
+        { Course: { $regex: searchRegex } },
+        { batch: { $regex: searchRegex } }
+      ];
+    }
+
+    const pipeline: any[] = [
       { $match: matchQuery },
       {
         $group: {
@@ -153,9 +182,37 @@ export async function GET(request: Request) {
         },
       },
       { $sort: { createdAt: -1 } },
-    ]);
+    ];
 
-    const formattedFiles = aggregated.map((quiz) => ({
+    let aggregated = [];
+    let totalCount = 0;
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const facetResult = await Quiz.aggregate([
+        {
+          $facet: {
+            metadata: [
+              { $match: matchQuery },
+              { $group: { _id: { fileName: "$fileName", Course: "$Course", batch: "$batch" } } },
+              { $count: "total" }
+            ],
+            data: [
+              ...pipeline,
+              { $skip: skip },
+              { $limit: limit }
+            ]
+          }
+        }
+      ]);
+      totalCount = facetResult[0]?.metadata[0]?.total || 0;
+      aggregated = facetResult[0]?.data || [];
+    } else {
+      aggregated = await Quiz.aggregate(pipeline);
+      totalCount = aggregated.length;
+    }
+
+    const formattedFiles = aggregated.map((quiz: any) => ({
       ...quiz,
       startTime: moment(quiz.startTime).tz("Asia/Kolkata").format(),
       endTime: moment(quiz.endTime).tz("Asia/Kolkata").format(),
@@ -165,6 +222,9 @@ export async function GET(request: Request) {
       isSuccess: true,
       message: "Quiz files retrieved successfully",
       data: formattedFiles,
+      totalCount,
+      totalPages: limit ? Math.ceil(totalCount / limit) : 1,
+      currentPage: page || 1,
     });
   } catch (error: any) {
     console.error("GET Quiz Error:", error);
@@ -254,7 +314,7 @@ export async function DELETE(request: Request) {
             { faculty: { $regex: new RegExp(`^${user.email.trim()}$`, "i") } },
             { faculty: { $regex: new RegExp(`^${user.name?.trim()}$`, "i") } }
           ]
-        }).select("name");
+        }).select("name").lean();
         const batchNames = facultyBatches.map(b => b.name);
 
         if (!batchNames.includes(quizToDelete.batch)) {
@@ -278,7 +338,7 @@ export async function DELETE(request: Request) {
               { faculty: { $regex: new RegExp(`^${user.email.trim()}$`, "i") } },
               { faculty: { $regex: new RegExp(`^${user.name?.trim()}$`, "i") } }
             ]
-          }).select("name");
+          }).select("name").lean();
           const batchNames = facultyBatches.map(b => b.name);
 
           if (!batchNames.includes(quizToDelete.batch)) {

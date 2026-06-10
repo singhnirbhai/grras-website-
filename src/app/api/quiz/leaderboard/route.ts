@@ -29,7 +29,7 @@ export async function GET(request: Request) {
 
     let query: any = { fileName };
     if (batch) {
-      const students = await Student.find({ batch: { $regex: new RegExp(`^${batch.trim()}$`, "i") } }).select("_id");
+      const students = await Student.find({ batch: { $regex: new RegExp(`^${batch.trim()}$`, "i") } }).select("_id").lean();
       const studentIds = students.map((s) => s._id);
       query.userId = { $in: studentIds };
     }
@@ -38,7 +38,8 @@ export async function GET(request: Request) {
       .sort({ score: -1, submittedAt: -1 })
       .limit(10)
       .select("userId score correctCount totalQuestions submittedAt")
-      .populate("userId", "name email batch");
+      .populate("userId", "name email batch")
+      .lean();
 
     const formattedLeaderboard = leaderboard.map((result: any) => {
       const populatedUser = result.userId;
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
     const userSubmission = await QuizResult.findOne({
       userId: user.id,
       fileName,
-    });
+    }).lean();
 
     return NextResponse.json({
       isSuccess: true,

@@ -58,7 +58,19 @@ export default function StudentsPage() {
       });
   }, []);
 
-  const { data: students = [], refetch: refetchStudents } = useStudents();
+  // Sorting states
+  const [sortField, setSortField] = useState<string | null>("createdAt");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+
+  const { data: students = [] as any, refetch: refetchStudents } = useStudents({
+    page: studentsPage,
+    limit: itemsPerPage,
+    search: debouncedSearchTerm,
+    faculty: selectedFacultyFilter,
+    batch: selectedBatchFilter,
+    sortField: sortField || undefined,
+    sortDirection: sortDirection,
+  });
   const { data: batches = [] } = useBatches();
   const { data: courses = [] } = useCourses();
   const { data: faculties = [] } = useFaculties();
@@ -87,41 +99,7 @@ export default function StudentsPage() {
     return [];
   }, [user, batches, selectedFacultyFilter]);
 
-  const filteredStudents = useMemo(() => {
-    return students.filter((s: any) => {
-      const matchesSearch =
-        s.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        s.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        s.course?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        s.batch?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        s.userId?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        s.createdBy?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        (s.assignedAt && new Date(s.assignedAt).toLocaleString().toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
-
-      if (!matchesSearch) return false;
-
-      if (user?.role === "faculty") {
-        if (!(s.createdBy?.toLowerCase() === user.email?.toLowerCase() || s.batch !== "")) {
-          return false;
-        }
-      }
-
-      if (selectedFacultyFilter) {
-        const studentBatch = batches.find((b: any) => b.name === s.batch);
-        if (!studentBatch || studentBatch.faculty?.toLowerCase() !== selectedFacultyFilter.toLowerCase()) {
-          return false;
-        }
-      }
-
-      if (selectedBatchFilter) {
-        if (s.batch !== selectedBatchFilter) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [students, debouncedSearchTerm, user, selectedFacultyFilter, selectedBatchFilter, batches]);
+  const filteredStudents = students;
 
   const handleFacultyFilterChange = (val: string) => {
     setSelectedFacultyFilter(val);
@@ -209,9 +187,7 @@ export default function StudentsPage() {
 
   const [selectedDetailItem, setSelectedDetailItem] = useState<any>(null);
 
-  // Sorting states
-  const [sortField, setSortField] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
 
   // Sorting Helpers
   const handleSort = (field: string) => {
@@ -249,12 +225,8 @@ export default function StudentsPage() {
   };
 
   // Pagination helper
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
-  const paginatedStudents = useMemo(() => {
-    const sorted = getSortedData(filteredStudents);
-    const start = (studentsPage - 1) * itemsPerPage;
-    return sorted.slice(start, start + itemsPerPage);
-  }, [filteredStudents, studentsPage, sortField, sortDirection, itemsPerPage]);
+  const totalPages = (students as any).totalPages || 1;
+  const paginatedStudents = students;
 
   return (
     <DashboardLayout activeTab="students">
@@ -507,11 +479,11 @@ export default function StudentsPage() {
               </table>
             </div>
 
-            {filteredStudents.length > 0 && (
+            {((students as any).totalCount || 0) > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))", gap: "16px", flexWrap: "wrap", position: "relative", zIndex: 50 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                   <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>
-                    Showing page {studentsPage} of {totalPages || 1} ({filteredStudents.length} total items)
+                    Showing page {studentsPage} of {totalPages || 1} ({((students as any).totalCount || 0)} total items)
                   </span>
                   <div style={{ width: "130px", marginTop: "-4px" }}>
                     <CustomDropdown

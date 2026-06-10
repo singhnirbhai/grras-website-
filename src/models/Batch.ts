@@ -40,6 +40,9 @@ const batchSchema = new Schema(
   { timestamps: true }
 );
 
+batchSchema.index({ course: 1 });
+batchSchema.index({ faculty: 1 });
+
 if (models.Batch) {
   delete (models as any).Batch;
 }

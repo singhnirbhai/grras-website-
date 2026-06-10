@@ -12,6 +12,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ isSuccess: false, message: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(request.url);
+    const page = searchParams.get("page") ? parseInt(searchParams.get("page")!) : null;
+    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : null;
+    const search = searchParams.get("search") || "";
+    const filterFaculty = searchParams.get("faculty") || "";
+    const sortField = searchParams.get("sortField") || "name";
+    const sortDirection = searchParams.get("sortDirection") === "desc" ? -1 : 1;
+
     let query: any = {};
     if (user.role === "faculty") {
       query = {
@@ -23,11 +31,55 @@ export async function GET(request: Request) {
       };
     }
 
-    const batches = await Batch.find(query).sort({ name: 1 }).lean();
+    // Apply client filters if present
+    if (filterFaculty) {
+      query.faculty = { $regex: new RegExp(`^${filterFaculty.trim()}$`, "i") };
+    }
+
+    if (search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      const searchConditions = [
+        { name: { $regex: searchRegex } },
+        { course: { $regex: searchRegex } },
+        { faculty: { $regex: searchRegex } },
+        { timing: { $regex: searchRegex } }
+      ];
+
+      if (query.$or) {
+        query = {
+          $and: [
+            { course: query.course, $or: query.$or },
+            { $or: searchConditions }
+          ]
+        };
+      } else {
+        query.$or = searchConditions;
+      }
+    }
+
+    let batches = [];
+    let totalCount = 0;
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      totalCount = await Batch.countDocuments(query);
+      batches = await Batch.find(query)
+        .sort({ [sortField]: sortDirection })
+        .skip(skip)
+        .limit(limit)
+        .lean();
+    } else {
+      batches = await Batch.find(query).sort({ [sortField]: sortDirection }).lean();
+      totalCount = batches.length;
+    }
+
     return NextResponse.json({
       isSuccess: true,
       message: "Batches retrieved successfully",
       data: batches,
+      totalCount,
+      totalPages: limit ? Math.ceil(totalCount / limit) : 1,
+      currentPage: page || 1,
     });
   } catch (error: any) {
     console.error("GET Batch Error:", error);

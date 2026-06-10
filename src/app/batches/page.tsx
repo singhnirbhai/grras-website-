@@ -63,7 +63,18 @@ export default function BatchesPage() {
       });
   }, []);
 
-  const { data: batches = [], refetch: refetchBatches } = useBatches();
+  // Sorting states
+  const [sortField, setSortField] = useState<string | null>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const { data: batches = [] as any, refetch: refetchBatches } = useBatches({
+    page: batchesPage,
+    limit: itemsPerPage,
+    search: debouncedSearchTerm,
+    faculty: selectedFaculty,
+    sortField: sortField || undefined,
+    sortDirection: sortDirection,
+  });
   const { data: courses = [] } = useCourses();
   const { data: faculties = [] } = useFaculties();
   const { data: students = [] } = useStudents();
@@ -77,28 +88,7 @@ export default function BatchesPage() {
     }
   };
 
-  const filteredBatches = useMemo(() => {
-    let list = batches;
-    if (user?.role === "admin" && selectedFaculty) {
-      const facultyObj = faculties.find((f: any) => f.email === selectedFaculty || f._id === selectedFaculty);
-      const facultyEmail = facultyObj?.email?.toLowerCase().trim();
-      const facultyName = facultyObj?.name?.toLowerCase().trim();
-
-      list = list.filter((b: any) => {
-        const bf = b.faculty?.toLowerCase().trim();
-        return bf === facultyEmail || bf === facultyName;
-      });
-    }
-
-    return list.filter(
-      (b: any) =>
-        b.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        b.course?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        b.faculty?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        b.timing?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        (b.days && b.days.some((d: string) => d.toLowerCase().includes(debouncedSearchTerm.toLowerCase())))
-    );
-  }, [batches, debouncedSearchTerm, selectedFaculty, faculties, user]);
+  const filteredBatches = batches;
 
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,9 +175,6 @@ export default function BatchesPage() {
     setViewMode("form");
   };
 
-  // Sorting states
-  const [sortField, setSortField] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   // Sorting Helpers
   const handleSort = (field: string) => {
@@ -232,12 +219,8 @@ export default function BatchesPage() {
   };
 
   // Pagination helper
-  const totalPages = Math.ceil(filteredBatches.length / itemsPerPage);
-  const paginatedBatches = useMemo(() => {
-    const sorted = getSortedData(filteredBatches);
-    const start = (batchesPage - 1) * itemsPerPage;
-    return sorted.slice(start, start + itemsPerPage);
-  }, [filteredBatches, batchesPage, sortField, sortDirection, itemsPerPage]);
+  const totalPages = (batches as any).totalPages || 1;
+  const paginatedBatches = batches;
 
   return (
     <DashboardLayout activeTab="batches">
@@ -457,11 +440,11 @@ export default function BatchesPage() {
               </table>
             </div>
 
-            {filteredBatches.length > 0 && (
+            {((batches as any).totalCount || 0) > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))", gap: "16px", flexWrap: "wrap", position: "relative", zIndex: 50 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                   <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>
-                    Showing page {batchesPage} of {totalPages || 1} ({filteredBatches.length} total items)
+                    Showing page {batchesPage} of {totalPages || 1} ({((batches as any).totalCount || 0)} total items)
                   </span>
                   <div style={{ width: "130px", marginTop: "-4px" }}>
                     <CustomDropdown

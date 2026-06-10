@@ -99,10 +99,6 @@ export default function QuizzesPage() {
     }
   }, [scheduleForm.startTime, scheduleForm.endTime]);
 
-  const { data: quizFiles = [], refetch: refetchQuizzes } = useQuizzes();
-  const { data: batches = [] } = useBatches();
-  const { data: faculties = [] } = useFaculties();
-  
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [itemsPerPage, setItemsPerPage] = useState(() => {
     if (typeof window !== "undefined") {
@@ -111,6 +107,16 @@ export default function QuizzesPage() {
     }
     return 8;
   });
+
+  const { data: quizFiles = [] as any, refetch: refetchQuizzes } = useQuizzes({
+    page: quizzesPage,
+    limit: itemsPerPage,
+    search: debouncedSearchTerm,
+    faculty: selectedFaculty,
+    batch: selectedBatch,
+  });
+  const { data: batches = [] } = useBatches();
+  const { data: faculties = [] } = useFaculties();
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -144,43 +150,7 @@ export default function QuizzesPage() {
     });
   }, [selectedFaculty, batches, faculties]);
 
-  const filteredQuizFiles = useMemo(() => {
-    let list = quizFiles;
-
-    if (user?.role === "admin") {
-      if (selectedFaculty) {
-        const facultyObj = faculties.find((f: any) => f.email === selectedFaculty || f._id === selectedFaculty);
-        const facultyEmail = facultyObj?.email?.toLowerCase().trim();
-        const facultyName = facultyObj?.name?.toLowerCase().trim();
-
-        const facultyBatchNames = batches
-          .filter((b: any) => {
-            const bf = b.faculty?.toLowerCase().trim();
-            return bf === facultyEmail || bf === facultyName;
-          })
-          .map((b: any) => b.name.toLowerCase().trim());
-
-        list = list.filter((q: any) => {
-          const quizBatch = q.batch?.toLowerCase().trim();
-          return quizBatch && facultyBatchNames.includes(quizBatch);
-        });
-      }
-
-      if (selectedBatch) {
-        list = list.filter((q: any) => 
-          q.batch?.toLowerCase().trim() === selectedBatch.toLowerCase().trim()
-        );
-      }
-    }
-
-    return list.filter(
-      (q: any) =>
-        q.fileName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        q.Course?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        q.batch?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-        (q.duration && String(q.duration).includes(debouncedSearchTerm))
-    );
-  }, [quizFiles, debouncedSearchTerm, selectedFaculty, selectedBatch, faculties, batches, user]);
+  const filteredQuizFiles = quizFiles;
 
   // Reschedule quiz
   const handleOpenScheduleModal = (file: any) => {
@@ -457,12 +427,8 @@ export default function QuizzesPage() {
   };
 
   // Pagination helper
-  const totalPages = Math.ceil(filteredQuizFiles.length / itemsPerPage);
-  const paginatedQuizzes = useMemo(() => {
-    const sorted = getSortedData(filteredQuizFiles);
-    const start = (quizzesPage - 1) * itemsPerPage;
-    return sorted.slice(start, start + itemsPerPage);
-  }, [filteredQuizFiles, quizzesPage, sortField, sortDirection, itemsPerPage]);
+  const totalPages = (quizFiles as any).totalPages || 1;
+  const paginatedQuizzes = quizFiles;
 
   return (
     <DashboardLayout activeTab="quizzes">
@@ -703,11 +669,11 @@ export default function QuizzesPage() {
               </table>
             </div>
 
-            {filteredQuizFiles.length > 0 && (
+            {((quizFiles as any).totalCount || 0) > 0 && (
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))", gap: "16px", flexWrap: "wrap", position: "relative", zIndex: 50 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                   <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>
-                    Showing page {quizzesPage} of {totalPages || 1} ({filteredQuizFiles.length} total items)
+                    Showing page {quizzesPage} of {totalPages || 1} ({((quizFiles as any).totalCount || 0)} total items)
                   </span>
                   <div style={{ width: "130px", marginTop: "-4px" }}>
                     <CustomDropdown

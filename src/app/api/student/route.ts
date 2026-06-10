@@ -16,7 +16,16 @@ export async function GET(request: Request) {
       return NextResponse.json({ isSuccess: false, message: "Unauthorized. Admin or Faculty role required." }, { status: 403 });
     }
 
-    let query = {};
+    const { searchParams } = new URL(request.url);
+    const page = searchParams.get("page") ? parseInt(searchParams.get("page")!) : null;
+    const limit = searchParams.get("limit") ? parseInt(searchParams.get("limit")!) : null;
+    const search = searchParams.get("search") || "";
+    const filterBatch = searchParams.get("batch") || "";
+    const filterFaculty = searchParams.get("faculty") || "";
+    const sortField = searchParams.get("sortField") || "createdAt";
+    const sortDirection = searchParams.get("sortDirection") === "asc" ? 1 : -1;
+
+    let query: any = {};
     let dbQueryTime = 0;
     
     if (user.role === "faculty") {
@@ -32,7 +41,7 @@ export async function GET(request: Request) {
             { faculty: { $regex: new RegExp(`^${user.email.trim()}$`, "i") } },
             { faculty: { $regex: new RegExp(`^${user.name?.trim()}$`, "i") } }
           ]
-        }).select("name")
+        }).select("name").lean()
       );
       
       dbQueryTime += batchQueryTime;
@@ -47,10 +56,73 @@ export async function GET(request: Request) {
       };
     }
 
-    const { result: students, durationMs: studentQueryTime } = await measure("Student.find (Student GET)", () =>
-      Student.find(query).select("-password").sort({ createdAt: -1 }).lean()
-    );
-    dbQueryTime += studentQueryTime;
+    // Apply client filters if present
+    if (filterBatch) {
+      query.batch = filterBatch;
+    }
+
+    if (filterFaculty) {
+      // Find batches of this faculty to filter students
+      const BatchModel = (await import("@/models/Batch")).Batch;
+      const matchingBatches = await BatchModel.find({
+        faculty: { $regex: new RegExp(`^${filterFaculty.trim()}$`, "i") }
+      }).select("name").lean();
+      const batchNames = matchingBatches.map(b => b.name);
+      
+      query.batch = { $in: batchNames };
+    }
+
+    if (search.trim()) {
+      const searchRegex = new RegExp(search.trim(), "i");
+      const searchConditions = [
+        { name: { $regex: searchRegex } },
+        { email: { $regex: searchRegex } },
+        { course: { $regex: searchRegex } },
+        { batch: { $regex: searchRegex } },
+        { userId: { $regex: searchRegex } }
+      ];
+
+      if (query.$or) {
+        query = {
+          $and: [
+            { course: query.course, $or: query.$or },
+            { $or: searchConditions }
+          ]
+        };
+      } else {
+        query.$or = searchConditions;
+      }
+    }
+
+    let students = [];
+    let totalCount = 0;
+
+    if (page && limit) {
+      const skip = (page - 1) * limit;
+      const { result: count, durationMs: countTime } = await measure("Student.countDocuments", () =>
+        Student.countDocuments(query)
+      );
+      totalCount = count;
+      dbQueryTime += countTime;
+
+      const { result: fetchedStudents, durationMs: studentQueryTime } = await measure("Student.find (Student GET)", () =>
+        Student.find(query)
+          .select("-password")
+          .sort({ [sortField]: sortDirection })
+          .skip(skip)
+          .limit(limit)
+          .lean()
+      );
+      students = fetchedStudents;
+      dbQueryTime += studentQueryTime;
+    } else {
+      const { result: fetchedStudents, durationMs: studentQueryTime } = await measure("Student.find (Student GET)", () =>
+        Student.find(query).select("-password").sort({ [sortField]: sortDirection }).lean()
+      );
+      students = fetchedStudents;
+      dbQueryTime += studentQueryTime;
+      totalCount = students.length;
+    }
 
     const totalTime = performance.now() - startTime;
 
@@ -59,6 +131,9 @@ export async function GET(request: Request) {
         isSuccess: true,
         message: "Students retrieved successfully",
         allData: students,
+        totalCount,
+        totalPages: limit ? Math.ceil(totalCount / limit) : 1,
+        currentPage: page || 1,
       },
       {
         dbConnect: dbConnTime,

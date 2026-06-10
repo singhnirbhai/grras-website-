@@ -34,52 +34,119 @@ export const useCourses = () => {
   });
 };
 
-export const useBatches = () => {
+export const useBatches = (params?: { page?: number; limit?: number; search?: string; faculty?: string; sortField?: string; sortDirection?: string }) => {
   return useQuery({
-    queryKey: ["batches"],
+    queryKey: ["batches", params],
     queryFn: async () => {
       try {
-        const res = await fetch("/api/batch");
-        if (!res.ok) return [];
+        const queryParams = new URLSearchParams();
+        if (params) {
+          Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== "") {
+              queryParams.append(key, String(val));
+            }
+          });
+        }
+        const res = await fetch(`/api/batch?${queryParams.toString()}`);
+        if (!res.ok) {
+          const arr: any = [];
+          arr.totalCount = 0;
+          arr.totalPages = 1;
+          arr.currentPage = 1;
+          return arr;
+        }
         const data = await res.json();
-        return data && data.isSuccess ? (data.data || []) : [];
+        const arr = data && data.isSuccess ? (data.data || []) : [];
+        arr.totalCount = data?.totalCount || arr.length;
+        arr.totalPages = data?.totalPages || 1;
+        arr.currentPage = data?.currentPage || 1;
+        return arr;
       } catch (error) {
         console.error("Error fetching batches:", error);
-        return [];
+        const arr: any = [];
+        arr.totalCount = 0;
+        arr.totalPages = 1;
+        arr.currentPage = 1;
+        return arr;
       }
     },
   });
 };
 
-export const useStudents = () => {
+export const useStudents = (params?: { page?: number; limit?: number; search?: string; faculty?: string; batch?: string; sortField?: string; sortDirection?: string }) => {
   return useQuery({
-    queryKey: ["students"],
+    queryKey: ["students", params],
     queryFn: async () => {
       try {
-        const res = await fetch("/api/student");
-        if (!res.ok) return [];
+        const queryParams = new URLSearchParams();
+        if (params) {
+          Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== "") {
+              queryParams.append(key, String(val));
+            }
+          });
+        }
+        const res = await fetch(`/api/student?${queryParams.toString()}`);
+        if (!res.ok) {
+          const arr: any = [];
+          arr.totalCount = 0;
+          arr.totalPages = 1;
+          arr.currentPage = 1;
+          return arr;
+        }
         const data = await res.json();
-        return data && data.isSuccess ? (data.allData || data.data || []) : [];
+        const arr = data && data.isSuccess ? (data.allData || data.data || []) : [];
+        arr.totalCount = data?.totalCount || arr.length;
+        arr.totalPages = data?.totalPages || 1;
+        arr.currentPage = data?.currentPage || 1;
+        return arr;
       } catch (error) {
         console.error("Error fetching students:", error);
-        return [];
+        const arr: any = [];
+        arr.totalCount = 0;
+        arr.totalPages = 1;
+        arr.currentPage = 1;
+        return arr;
       }
     },
   });
 };
 
-export const useQuizzes = () => {
+export const useQuizzes = (params?: { page?: number; limit?: number; search?: string; faculty?: string; batch?: string }) => {
   return useQuery({
-    queryKey: ["quizzes"],
+    queryKey: ["quizzes", params],
     queryFn: async () => {
       try {
-        const res = await fetch("/api/quiz?includeExpired=true");
-        if (!res.ok) return [];
+        const queryParams = new URLSearchParams();
+        queryParams.append("includeExpired", "true");
+        if (params) {
+          Object.entries(params).forEach(([key, val]) => {
+            if (val !== undefined && val !== null && val !== "") {
+              queryParams.append(key, String(val));
+            }
+          });
+        }
+        const res = await fetch(`/api/quiz?${queryParams.toString()}`);
+        if (!res.ok) {
+          const arr: any = [];
+          arr.totalCount = 0;
+          arr.totalPages = 1;
+          arr.currentPage = 1;
+          return arr;
+        }
         const data = await res.json();
-        return data && data.isSuccess ? (data.data || []) : [];
+        const arr = data && data.isSuccess ? (data.data || []) : [];
+        arr.totalCount = data?.totalCount || arr.length;
+        arr.totalPages = data?.totalPages || 1;
+        arr.currentPage = data?.currentPage || 1;
+        return arr;
       } catch (error) {
         console.error("Error fetching quizzes:", error);
-        return [];
+        const arr: any = [];
+        arr.totalCount = 0;
+        arr.totalPages = 1;
+        arr.currentPage = 1;
+        return arr;
       }
     },
   });
