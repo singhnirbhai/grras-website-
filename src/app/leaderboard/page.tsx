@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Trophy, Award } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { useQuizzes, useBatches, useLeaderboard } from "@/hooks/useDashboardData";
+import { useQuizzes, useBatches, useLeaderboard, useFaculties } from "@/hooks/useDashboardData";
 import { CustomDropdown } from "@/components/ui/CustomDropdown";
 
 export default function LeaderboardPage() {
+  const [selectedFaculty, setSelectedFaculty] = useState<string>("");
   const [selectedBatch, setSelectedBatch] = useState<string>("");
   const [selectedLeaderboardFile, setSelectedLeaderboardFile] = useState<string>("");
   const [user, setUser] = useState<any>(null);
@@ -19,15 +20,24 @@ export default function LeaderboardPage() {
       });
   }, []);
 
+  const { data: faculties = [] } = useFaculties();
   const { data: batches = [] } = useBatches();
   const { data: quizFiles = [] } = useQuizzes();
   const { data: leaderboardData = [] } = useLeaderboard(selectedLeaderboardFile, selectedBatch);
 
-  // Filter batches based on user role context
+  // Filter batches based on user role context & selected faculty
   const filteredBatchesForUser = useMemo(() => {
     if (!user) return [];
     if (user.role === "admin") {
-      return batches;
+      if (!selectedFaculty) return batches;
+      const facultyObj = faculties.find((f: any) => f.email === selectedFaculty || f._id === selectedFaculty);
+      const facultyEmail = facultyObj?.email?.toLowerCase().trim();
+      const facultyName = facultyObj?.name?.toLowerCase().trim();
+
+      return batches.filter((b: any) => {
+        const bf = b.faculty?.toLowerCase().trim();
+        return bf === facultyEmail || bf === facultyName;
+      });
     } else if (user.role === "faculty") {
       return batches.filter((b: any) => 
         b.faculty?.toLowerCase() === user.email?.toLowerCase() ||
@@ -37,7 +47,7 @@ export default function LeaderboardPage() {
       return batches.filter((b: any) => b.name === user.batch);
     }
     return [];
-  }, [user, batches]);
+  }, [user, batches, selectedFaculty, faculties]);
 
   // Auto-select batch for student or single-batch faculty
   useEffect(() => {
@@ -56,6 +66,12 @@ export default function LeaderboardPage() {
     return quizFiles.filter((q: any) => q.batch === selectedBatch);
   }, [quizFiles, selectedBatch]);
 
+  const handleFacultyChange = (facultyVal: string) => {
+    setSelectedFaculty(facultyVal);
+    setSelectedBatch("");
+    setSelectedLeaderboardFile("");
+  };
+
   const handleBatchChange = (batchVal: string) => {
     setSelectedBatch(batchVal);
     setSelectedLeaderboardFile(""); // Reset quiz selection on batch change
@@ -72,10 +88,19 @@ export default function LeaderboardPage() {
         </div>
 
         <div className="glass" style={{ padding: "24px 32px", borderRadius: "var(--radius-lg)", marginBottom: "32px", zIndex: 5, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "20px" }}>
+          {user?.role === "admin" && (
+            <CustomDropdown
+              label="Filter Faculty"
+              value={selectedFaculty}
+              options={[{ label: "All Faculties", value: "" }, ...faculties.map((f: any) => ({ label: `${f.name} (${f.course})`, value: f.email }))]}
+              onChange={handleFacultyChange}
+              placeholder="-- Choose Faculty (All) --"
+            />
+          )}
           <CustomDropdown
             label="Filter Cohort Batch"
             value={selectedBatch}
-            options={filteredBatchesForUser.map((b: any) => ({ label: b.name, value: b.name }))}
+            options={[{ label: "All Batches", value: "" }, ...filteredBatchesForUser.map((b: any) => ({ label: b.name, value: b.name }))]}
             onChange={handleBatchChange}
             placeholder="-- Choose Batch --"
             disabled={user?.role === "student"}

@@ -6,7 +6,7 @@ import Swal from "sweetalert2";
 import * as XLSX from "xlsx";
 import moment from "moment-timezone";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { useQuizzes, useBatches } from "@/hooks/useDashboardData";
+import { useQuizzes, useBatches, useFaculties } from "@/hooks/useDashboardData";
 import { CustomDropdown } from "@/components/ui/CustomDropdown";
 import { CustomFileUpload } from "@/components/ui/CustomFileUpload";
 
@@ -17,6 +17,9 @@ export default function QuizzesPage() {
   const [user, setUser] = useState<any>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isLoadingManual, setIsLoadingManual] = useState(false);
+
+  const [selectedFaculty, setSelectedFaculty] = useState<string>("");
+  const [selectedBatch, setSelectedBatch] = useState<string>("");
 
   // Upload states
   const [uploadForm, setUploadForm] = useState({
@@ -96,6 +99,7 @@ export default function QuizzesPage() {
 
   const { data: quizFiles = [], refetch: refetchQuizzes } = useQuizzes();
   const { data: batches = [] } = useBatches();
+  const { data: faculties = [] } = useFaculties();
   
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [itemsPerPage, setItemsPerPage] = useState(() => {
@@ -126,15 +130,55 @@ export default function QuizzesPage() {
     }
   };
 
+  const filteredBatchesForDropdown = useMemo(() => {
+    if (!selectedFaculty) return batches;
+    const facultyObj = faculties.find((f: any) => f.email === selectedFaculty || f._id === selectedFaculty);
+    const facultyEmail = facultyObj?.email?.toLowerCase().trim();
+    const facultyName = facultyObj?.name?.toLowerCase().trim();
+    
+    return batches.filter((b: any) => {
+      const bf = b.faculty?.toLowerCase().trim();
+      return bf === facultyEmail || bf === facultyName;
+    });
+  }, [selectedFaculty, batches, faculties]);
+
   const filteredQuizFiles = useMemo(() => {
-    return quizFiles.filter(
+    let list = quizFiles;
+
+    if (user?.role === "admin") {
+      if (selectedFaculty) {
+        const facultyObj = faculties.find((f: any) => f.email === selectedFaculty || f._id === selectedFaculty);
+        const facultyEmail = facultyObj?.email?.toLowerCase().trim();
+        const facultyName = facultyObj?.name?.toLowerCase().trim();
+
+        const facultyBatchNames = batches
+          .filter((b: any) => {
+            const bf = b.faculty?.toLowerCase().trim();
+            return bf === facultyEmail || bf === facultyName;
+          })
+          .map((b: any) => b.name.toLowerCase().trim());
+
+        list = list.filter((q: any) => {
+          const quizBatch = q.batch?.toLowerCase().trim();
+          return quizBatch && facultyBatchNames.includes(quizBatch);
+        });
+      }
+
+      if (selectedBatch) {
+        list = list.filter((q: any) => 
+          q.batch?.toLowerCase().trim() === selectedBatch.toLowerCase().trim()
+        );
+      }
+    }
+
+    return list.filter(
       (q: any) =>
         q.fileName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         q.Course?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         q.batch?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         (q.duration && String(q.duration).includes(debouncedSearchTerm))
     );
-  }, [quizFiles, debouncedSearchTerm]);
+  }, [quizFiles, debouncedSearchTerm, selectedFaculty, selectedBatch, faculties, batches, user]);
 
   // Reschedule quiz
   const handleOpenScheduleModal = (file: any) => {
@@ -513,8 +557,8 @@ export default function QuizzesPage() {
             )}
           </div>
 
-          <div className="glass" style={{ borderRadius: "var(--radius-lg)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid hsl(var(--border-color))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div className="glass" style={{ borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid hsl(var(--border-color))", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px" }}>
               <input
                 type="text"
                 placeholder="Search quiz files..."
@@ -523,6 +567,35 @@ export default function QuizzesPage() {
                 className="input-field"
                 style={{ maxWidth: "320px", height: "40px" }}
               />
+              {user?.role === "admin" && (
+                <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "flex-end" }}>
+                  <div style={{ minWidth: "220px" }}>
+                    <CustomDropdown
+                      label="Filter Faculty"
+                      value={selectedFaculty}
+                      options={[{ label: "All Faculties", value: "" }, ...faculties.map((f: any) => ({ label: `${f.name} (${f.course})`, value: f.email }))]}
+                      onChange={(val) => {
+                        setSelectedFaculty(val);
+                        setSelectedBatch("");
+                        setQuizzesPage(1);
+                      }}
+                      placeholder="-- Choose Faculty (All) --"
+                    />
+                  </div>
+                  <div style={{ minWidth: "220px" }}>
+                    <CustomDropdown
+                      label="Filter Cohort Batch"
+                      value={selectedBatch}
+                      options={[{ label: "All Batches", value: "" }, ...filteredBatchesForDropdown.map((b: any) => ({ label: b.name, value: b.name }))]}
+                      onChange={(val) => {
+                        setSelectedBatch(val);
+                        setQuizzesPage(1);
+                      }}
+                      placeholder="-- Choose Batch (All) --"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div style={{ overflowX: "auto" }}>

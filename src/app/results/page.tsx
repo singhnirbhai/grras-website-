@@ -5,7 +5,8 @@ import { Eye, Trash2, Calendar, Clock, Trophy, ChevronLeft, CheckCircle2, XCircl
 import Swal from "sweetalert2";
 import moment from "moment-timezone";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { useResults } from "@/hooks/useDashboardData";
+import { useResults, useFaculties, useBatches } from "@/hooks/useDashboardData";
+import { CustomDropdown } from "@/components/ui/CustomDropdown";
 
 export default function ResultsPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -14,6 +15,9 @@ export default function ResultsPage() {
   const [selectedQuizName, setSelectedQuizName] = useState<string>("");
   const [selectedStudentResult, setSelectedStudentResult] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
+
+  const [selectedFaculty, setSelectedFaculty] = useState<string>("");
+  const [selectedBatch, setSelectedBatch] = useState<string>("");
 
   useEffect(() => {
     fetch("/api/auth/profile")
@@ -24,6 +28,8 @@ export default function ResultsPage() {
   }, []);
 
   const { data: results = [], refetch: refetchResults } = useResults();
+  const { data: faculties = [] } = useFaculties();
+  const { data: batches = [] } = useBatches();
   const ITEMS_PER_PAGE = 10;
 
   // Auto-refresh ongoing results when they end
@@ -49,6 +55,59 @@ export default function ResultsPage() {
     };
   }, [results, refetchResults]);
 
+  const filteredBatchesForDropdown = useMemo(() => {
+    if (!selectedFaculty) return batches;
+    const facultyObj = faculties.find((f: any) => f.email === selectedFaculty || f._id === selectedFaculty);
+    const facultyEmail = facultyObj?.email?.toLowerCase().trim();
+    const facultyName = facultyObj?.name?.toLowerCase().trim();
+    
+    return batches.filter((b: any) => {
+      const bf = b.faculty?.toLowerCase().trim();
+      return bf === facultyEmail || bf === facultyName;
+    });
+  }, [selectedFaculty, batches, faculties]);
+
+  const filteredResults = useMemo(() => {
+    let list = results;
+
+    if (user?.role === "admin") {
+      if (selectedFaculty) {
+        const facultyObj = faculties.find((f: any) => f.email === selectedFaculty || f._id === selectedFaculty);
+        const facultyEmail = facultyObj?.email?.toLowerCase().trim();
+        const facultyName = facultyObj?.name?.toLowerCase().trim();
+
+        const facultyBatchNames = batches
+          .filter((b: any) => {
+            const bf = b.faculty?.toLowerCase().trim();
+            return bf === facultyEmail || bf === facultyName;
+          })
+          .map((b: any) => b.name.toLowerCase().trim());
+
+        list = list.filter((r: any) => {
+          const studentBatch = r.student?.batch?.toLowerCase().trim();
+          return studentBatch && facultyBatchNames.includes(studentBatch);
+        });
+      }
+
+      if (selectedBatch) {
+        list = list.filter((r: any) => 
+          r.student?.batch?.toLowerCase().trim() === selectedBatch.toLowerCase().trim()
+        );
+      }
+    }
+    
+    return list;
+  }, [results, user, selectedFaculty, selectedBatch, faculties, batches]);
+
+  const handleFacultyChange = (facultyVal: string) => {
+    setSelectedFaculty(facultyVal);
+    setSelectedBatch("");
+  };
+
+  const handleBatchChange = (batchVal: string) => {
+    setSelectedBatch(batchVal);
+  };
+
   const isAdminOrFaculty = user?.role === "admin" || user?.role === "faculty";
 
   // Grouped results for Admin/Faculty landing page
@@ -57,7 +116,7 @@ export default function ResultsPage() {
     
     const groups: Record<string, { fileName: string; submissionsCount: number; totalScore: number; resultsList: any[] }> = {};
     
-    results.forEach((r: any) => {
+    filteredResults.forEach((r: any) => {
       if (!groups[r.fileName]) {
         groups[r.fileName] = {
           fileName: r.fileName,
@@ -74,18 +133,18 @@ export default function ResultsPage() {
     return Object.values(groups).filter((g) =>
       g.fileName?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [results, searchTerm, isAdminOrFaculty]);
+  }, [filteredResults, searchTerm, isAdminOrFaculty]);
 
   // Students list for a specific quiz (Admin/Faculty second page)
   const studentsForSelectedQuiz = useMemo(() => {
     if (!selectedQuizName) return [];
-    const quizSubmissions = results.filter((r: any) => r.fileName === selectedQuizName);
+    const quizSubmissions = filteredResults.filter((r: any) => r.fileName === selectedQuizName);
     return quizSubmissions.filter(
       (r: any) =>
         r.student?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.student?.userId?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [results, selectedQuizName, searchTerm]);
+  }, [filteredResults, selectedQuizName, searchTerm]);
 
   // Student own results list (Student landing page)
   const studentOwnResults = useMemo(() => {
@@ -142,8 +201,8 @@ export default function ResultsPage() {
         {/* VIEW 1: ADMIN/FACULTY LANDING - GROUPED BY QUIZ */}
         {isAdminOrFaculty && viewState === "list" && (
           <div>
-            <div className="glass" style={{ borderRadius: "var(--radius-lg)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              <div style={{ padding: "20px 24px", borderBottom: "1px solid hsl(var(--border-color))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="glass" style={{ borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column" }}>
+              <div style={{ padding: "20px 24px", borderBottom: "1px solid hsl(var(--border-color))", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px" }}>
                 <input
                   type="text"
                   placeholder="Search quizzes..."
@@ -152,6 +211,28 @@ export default function ResultsPage() {
                   className="input-field"
                   style={{ maxWidth: "320px", height: "40px" }}
                 />
+                {user?.role === "admin" && (
+                  <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "flex-end" }}>
+                    <div style={{ minWidth: "220px" }}>
+                      <CustomDropdown
+                        label="Filter Faculty"
+                        value={selectedFaculty}
+                        options={[{ label: "All Faculties", value: "" }, ...faculties.map((f: any) => ({ label: `${f.name} (${f.course})`, value: f.email }))]}
+                        onChange={handleFacultyChange}
+                        placeholder="-- Choose Faculty (All) --"
+                      />
+                    </div>
+                    <div style={{ minWidth: "220px" }}>
+                      <CustomDropdown
+                        label="Filter Cohort Batch"
+                        value={selectedBatch}
+                        options={[{ label: "All Batches", value: "" }, ...filteredBatchesForDropdown.map((b: any) => ({ label: b.name, value: b.name }))]}
+                        onChange={handleBatchChange}
+                        placeholder="-- Choose Batch (All) --"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ overflowX: "auto" }}>
@@ -236,8 +317,8 @@ export default function ResultsPage() {
               Submissions for Quiz: <span style={{ color: "hsl(var(--primary))" }}>{selectedQuizName}</span>
             </h2>
 
-            <div className="glass" style={{ borderRadius: "var(--radius-lg)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              <div style={{ padding: "20px 24px", borderBottom: "1px solid hsl(var(--border-color))", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="glass" style={{ borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column" }}>
+              <div style={{ padding: "20px 24px", borderBottom: "1px solid hsl(var(--border-color))", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: "16px" }}>
                 <input
                   type="text"
                   placeholder="Search students..."
@@ -246,6 +327,28 @@ export default function ResultsPage() {
                   className="input-field"
                   style={{ maxWidth: "320px", height: "40px" }}
                 />
+                {user?.role === "admin" && (
+                  <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "flex-end" }}>
+                    <div style={{ minWidth: "220px" }}>
+                      <CustomDropdown
+                        label="Filter Faculty"
+                        value={selectedFaculty}
+                        options={[{ label: "All Faculties", value: "" }, ...faculties.map((f: any) => ({ label: `${f.name} (${f.course})`, value: f.email }))]}
+                        onChange={handleFacultyChange}
+                        placeholder="-- Choose Faculty (All) --"
+                      />
+                    </div>
+                    <div style={{ minWidth: "220px" }}>
+                      <CustomDropdown
+                        label="Filter Cohort Batch"
+                        value={selectedBatch}
+                        options={[{ label: "All Batches", value: "" }, ...filteredBatchesForDropdown.map((b: any) => ({ label: b.name, value: b.name }))]}
+                        onChange={handleBatchChange}
+                        placeholder="-- Choose Batch (All) --"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div style={{ overflowX: "auto" }}>

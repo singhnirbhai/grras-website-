@@ -30,6 +30,8 @@ export default function BatchesPage() {
     return 8;
   });
 
+  const [selectedFaculty, setSelectedFaculty] = useState<string>("");
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -74,7 +76,19 @@ export default function BatchesPage() {
   };
 
   const filteredBatches = useMemo(() => {
-    return batches.filter(
+    let list = batches;
+    if (user?.role === "admin" && selectedFaculty) {
+      const facultyObj = faculties.find((f: any) => f.email === selectedFaculty || f._id === selectedFaculty);
+      const facultyEmail = facultyObj?.email?.toLowerCase().trim();
+      const facultyName = facultyObj?.name?.toLowerCase().trim();
+
+      list = list.filter((b: any) => {
+        const bf = b.faculty?.toLowerCase().trim();
+        return bf === facultyEmail || bf === facultyName;
+      });
+    }
+
+    return list.filter(
       (b: any) =>
         b.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         b.course?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
@@ -82,7 +96,7 @@ export default function BatchesPage() {
         b.timing?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
         (b.days && b.days.some((d: string) => d.toLowerCase().includes(debouncedSearchTerm.toLowerCase())))
     );
-  }, [batches, debouncedSearchTerm]);
+  }, [batches, debouncedSearchTerm, selectedFaculty, faculties, user]);
 
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -307,16 +321,32 @@ export default function BatchesPage() {
             </div>
           </div>
 
-          <div className="glass" style={{ borderRadius: "var(--radius-lg)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div className="glass" style={{ borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid hsl(var(--border-color))", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", flexWrap: "wrap" }}>
-              <input
-                type="text"
-                placeholder="Search batches..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field"
-                style={{ maxWidth: "320px", height: "40px" }}
-              />
+              <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "flex-end", flex: 1 }}>
+                <input
+                  type="text"
+                  placeholder="Search batches..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="input-field"
+                  style={{ maxWidth: "320px", height: "40px" }}
+                />
+                {user?.role === "admin" && (
+                  <div style={{ minWidth: "220px" }}>
+                    <CustomDropdown
+                      label="Filter Faculty"
+                      value={selectedFaculty}
+                      options={[{ label: "All Faculties", value: "" }, ...faculties.map((f: any) => ({ label: `${f.name} (${f.course})`, value: f.email }))]}
+                      onChange={(val) => {
+                        setSelectedFaculty(val);
+                        setBatchesPage(1);
+                      }}
+                      placeholder="-- Choose Faculty (All) --"
+                    />
+                  </div>
+                )}
+              </div>
               {(user?.role === "admin" || user?.role === "faculty") && (
                 <button
                   className="btn-primary"
