@@ -481,3 +481,11 @@ table td {
   }
 }
 
+/* Force Header to be sticky on all screens, especially mobile/tablet */
+header {
+  position: -webkit-sticky !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 150 !important;
+}
+
