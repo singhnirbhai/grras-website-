@@ -456,6 +456,22 @@ export default function QuizzesPage() {
     <DashboardLayout activeTab="quizzes">
       {viewMode === "form" ? (
         <div className="animate-fade-in glass" style={{ padding: "32px", borderRadius: "var(--radius-lg)", width: "100%", margin: "0 auto" }}>
+          <button
+            type="button"
+            onClick={() => { setViewMode("list"); setSelectedFileForSchedule(null); setFormErrors({}); }}
+            className="btn-secondary"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              minWidth: "120px",
+              height: "46px",
+              marginBottom: "24px",
+            }}
+          >
+            <ArrowLeft size={16} /> Back
+          </button>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "32px", borderBottom: "1px solid hsl(var(--border-color))", paddingBottom: "16px" }}>
             <div>
               <h2 style={{ fontSize: "24px", fontWeight: 800 }}>

@@ -15,7 +15,7 @@ export const FacultyKanban = memo(({
   onDelete,
 }: FacultyKanbanProps) => {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: "20px" }}>
       {faculties.length === 0 ? (
         <div className="glass" style={{ padding: "40px", textAlign: "center", color: "hsl(var(--text-muted))", gridColumn: "1 / -1" }}>No instructors found</div>
       ) : (
