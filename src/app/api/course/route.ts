@@ -2,21 +2,35 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { Course } from "@/models/Course";
 import { getAuthenticatedUser } from "@/lib/auth";
+import { measure, nextResponseWithTiming } from "@/lib/perf";
 
 export async function GET(request: Request) {
+  const startTime = performance.now();
   try {
-    await connectDB();
+    const { durationMs: dbConnTime } = await measure("DB Connection (Course GET)", () => connectDB());
     const user = await getAuthenticatedUser();
     if (!user) {
       return NextResponse.json({ isSuccess: false, message: "Unauthorized. Please log in." }, { status: 401 });
     }
 
-    const courses = await Course.find().sort({ name: 1 });
-    return NextResponse.json({
-      isSuccess: true,
-      message: "Courses retrieved successfully",
-      data: courses,
-    });
+    const { result: courses, durationMs: dbQueryTime } = await measure("Course.find (Course GET)", () =>
+      Course.find().sort({ name: 1 }).lean()
+    );
+
+    const totalTime = performance.now() - startTime;
+
+    return nextResponseWithTiming(
+      {
+        isSuccess: true,
+        message: "Courses retrieved successfully",
+        data: courses,
+      },
+      {
+        dbConnect: dbConnTime,
+        dbQuery: dbQueryTime,
+        totalApi: totalTime,
+      }
+    );
   } catch (error: any) {
     console.error("GET Course Error:", error);
     return NextResponse.json({ isSuccess: false, message: "Internal Server Error", error: error.message }, { status: 500 });

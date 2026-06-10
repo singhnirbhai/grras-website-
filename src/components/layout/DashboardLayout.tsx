@@ -22,29 +22,19 @@ interface AuthUser {
 
 export default function DashboardLayout({ children, activeTab }: DashboardLayoutProps) {
   const router = useRouter();
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    if (typeof window !== "undefined") {
-      const cached = sessionStorage.getItem("auth_user");
-      return cached ? JSON.parse(cached) : null;
-    }
-    return null;
-  });
-  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("sidebar_open");
-      if (saved !== null) return saved === "true";
-      return window.innerWidth > 1024;
-    }
-    return true;
-  });
-  const [isCheckingAuth, setIsCheckingAuth] = useState(() => {
-    if (typeof window !== "undefined") {
-      return !sessionStorage.getItem("auth_user");
-    }
-    return true;
-  });
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
+    // Restore auth state on client mount
+    const cached = sessionStorage.getItem("auth_user");
+    if (cached) {
+      const parsedUser = JSON.parse(cached);
+      setUser(parsedUser);
+      setIsCheckingAuth(false);
+    }
+
     fetch("/api/auth/profile")
       .then((res) => res.json())
       .then((data) => {
@@ -75,7 +65,7 @@ export default function DashboardLayout({ children, activeTab }: DashboardLayout
       }
     };
     
-    // Set initial
+    // Set initial layout once on client mount
     handleResize();
     
     window.addEventListener("resize", handleResize);

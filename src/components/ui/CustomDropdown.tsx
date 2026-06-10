@@ -12,6 +12,7 @@ interface CustomDropdownProps {
   required?: boolean;
   error?: string;
   disabled?: boolean;
+  openUpward?: boolean;
 }
 
 export const CustomDropdown = ({
@@ -23,6 +24,7 @@ export const CustomDropdown = ({
   required = false,
   error,
   disabled = false,
+  openUpward = false,
 }: CustomDropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -59,13 +61,14 @@ export const CustomDropdown = ({
             border: error ? "1px solid hsl(var(--danger))" : "1px solid hsl(var(--border-color))",
             backgroundColor: disabled ? "hsl(var(--bg-primary))" : "hsl(var(--bg-secondary))",
             opacity: disabled ? 0.6 : 1,
+            padding: "10px 12px",
           }}
         >
-          <span style={{ color: value ? "inherit" : "hsl(var(--text-muted))" }}>
+          <span style={{ color: value ? "inherit" : "hsl(var(--text-muted))", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginRight: "4px" }}>
             {options.find((opt) => opt.value === value)?.label || placeholder}
           </span>
           {!disabled && (
-            <ChevronDown size={16} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "0.2s" }} />
+            <ChevronDown size={16} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "0.2s", flexShrink: 0 }} />
           )}
         </div>
 
@@ -73,16 +76,20 @@ export const CustomDropdown = ({
           <div
             style={{
               position: "absolute",
-              top: "100%",
-              left: 0,
+              top: openUpward ? "auto" : "100%",
+              bottom: openUpward ? "100%" : "auto",
+              left: openUpward ? "auto" : 0,
               right: 0,
-              marginTop: "8px",
-              zIndex: 100,
+              minWidth: "100%",
+              width: "max-content",
+              marginTop: openUpward ? "0px" : "8px",
+              marginBottom: openUpward ? "8px" : "0px",
+              zIndex: 1000,
               maxHeight: "260px",
               overflowY: "auto",
               borderRadius: "var(--radius-md)",
               padding: "8px",
-              boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)",
+              boxShadow: "0 -10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 25px -5px rgba(0, 0, 0, 0.1)",
               backgroundColor: "hsl(var(--bg-secondary))",
               border: "1px solid hsl(var(--border-color))",
             }}
@@ -137,6 +144,7 @@ export const CustomDropdown = ({
                     backgroundColor: value === opt.value ? "hsl(var(--primary-light))" : "transparent",
                     color: value === opt.value ? "hsl(var(--primary))" : "hsl(var(--text-primary))",
                     transition: "background-color 0.15s ease, color 0.15s ease",
+                    whiteSpace: "nowrap",
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = "hsl(var(--primary))";

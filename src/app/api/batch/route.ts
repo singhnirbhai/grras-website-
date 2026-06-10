@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       };
     }
 
-    const batches = await Batch.find(query).sort({ name: 1 });
+    const batches = await Batch.find(query).sort({ name: 1 }).lean();
     return NextResponse.json({
       isSuccess: true,
       message: "Batches retrieved successfully",

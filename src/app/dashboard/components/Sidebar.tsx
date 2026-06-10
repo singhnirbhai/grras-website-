@@ -34,6 +34,11 @@ export const Sidebar = memo(({
   user,
   onLogout,
 }: SidebarProps) => {
+  const [isReady, setIsReady] = React.useState(false);
+  React.useEffect(() => {
+    setIsReady(true);
+  }, []);
+
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "faculty", "student"] },
     { id: "courses", label: "Courses", icon: BookOpen, roles: ["admin"] },
@@ -52,7 +57,7 @@ export const Sidebar = memo(({
   return (
     <>
       <aside
-        className={`sidebar-responsive ${isSidebarOpen ? "sidebar-open" : "sidebar-closed"}`}
+        className={`sidebar-responsive ${isSidebarOpen ? "sidebar-open" : "sidebar-closed"} ${isReady ? "sidebar-ready" : ""}`}
         style={{
           width: isSidebarOpen ? "260px" : "80px",
           backgroundColor: "hsl(var(--bg-secondary))",
@@ -61,7 +66,7 @@ export const Sidebar = memo(({
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          transition: "width var(--transition-normal)",
+          transition: isReady ? "width var(--transition-normal)" : "none",
           zIndex: 40,
           position: "relative"
         }}

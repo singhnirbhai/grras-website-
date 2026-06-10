@@ -96,15 +96,45 @@ export default function QuizzesPage() {
 
   const { data: quizFiles = [], refetch: refetchQuizzes } = useQuizzes();
   const { data: batches = [] } = useBatches();
-  const ITEMS_PER_PAGE = 8;
+  
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("quizzes_items_per_page");
+      return saved ? Number(saved) : 8;
+    }
+    return 8;
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setQuizzesPage(1);
+  }, [debouncedSearchTerm]);
+
+  const handleItemsPerPageChange = (val: string) => {
+    const size = Number(val);
+    setItemsPerPage(size);
+    setQuizzesPage(1);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("quizzes_items_per_page", String(size));
+    }
+  };
 
   const filteredQuizFiles = useMemo(() => {
     return quizFiles.filter(
       (q: any) =>
-        q.fileName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        q.Course?.toLowerCase().includes(searchTerm.toLowerCase())
+        q.fileName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        q.Course?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        q.batch?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        (q.duration && String(q.duration).includes(debouncedSearchTerm))
     );
-  }, [quizFiles, searchTerm]);
+  }, [quizFiles, debouncedSearchTerm]);
 
   // Reschedule quiz
   const handleOpenScheduleModal = (file: any) => {
@@ -371,12 +401,12 @@ export default function QuizzesPage() {
   };
 
   // Pagination helper
-  const totalPages = Math.ceil(filteredQuizFiles.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredQuizFiles.length / itemsPerPage);
   const paginatedQuizzes = useMemo(() => {
     const sorted = getSortedData(filteredQuizFiles);
-    const start = (quizzesPage - 1) * ITEMS_PER_PAGE;
-    return sorted.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredQuizFiles, quizzesPage, sortField, sortDirection]);
+    const start = (quizzesPage - 1) * itemsPerPage;
+    return sorted.slice(start, start + itemsPerPage);
+  }, [filteredQuizFiles, quizzesPage, sortField, sortDirection, itemsPerPage]);
 
   return (
     <DashboardLayout activeTab="quizzes">
@@ -516,7 +546,7 @@ export default function QuizzesPage() {
                   ) : (
                     paginatedQuizzes.map((file: any, idx: number) => (
                       <tr key={idx} onClick={() => { setSelectedDetailItem(file); setViewMode("view"); }} style={{ borderBottom: "1px solid hsl(var(--border-color))", transition: "var(--transition-fast)", cursor: "pointer" }} className="dropdown-item-hover">
-                        <td style={{ padding: "16px 24px", fontWeight: 700, color: "hsl(var(--primary))" }}>{(quizzesPage - 1) * ITEMS_PER_PAGE + idx + 1}</td>
+                        <td style={{ padding: "16px 24px", fontWeight: 700, color: "hsl(var(--primary))" }}>{(quizzesPage - 1) * itemsPerPage + idx + 1}</td>
                         <td style={{ padding: "16px 24px", fontWeight: 600 }}>{file.fileName}</td>
                         <td style={{ padding: "16px 24px", color: "hsl(var(--text-secondary))" }}>{file.Course}</td>
                         <td style={{ padding: "16px 24px", color: "hsl(var(--text-secondary))" }}>{file.batch}</td>
@@ -556,13 +586,36 @@ export default function QuizzesPage() {
               </table>
             </div>
 
-            {totalPages > 1 && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))" }}>
-                <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>Showing page {quizzesPage} of {totalPages}</span>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={() => setQuizzesPage((prev) => Math.max(prev - 1, 1))} disabled={quizzesPage === 1} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Prev</button>
-                  <button onClick={() => setQuizzesPage((prev) => Math.min(prev + 1, totalPages))} disabled={quizzesPage === totalPages} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Next</button>
+            {filteredQuizFiles.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))", gap: "16px", flexWrap: "wrap", position: "relative", zIndex: 50 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                  <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>
+                    Showing page {quizzesPage} of {totalPages || 1} ({filteredQuizFiles.length} total items)
+                  </span>
+                  <div style={{ width: "130px", marginTop: "-4px" }}>
+                    <CustomDropdown
+                      label=""
+                      value={String(itemsPerPage)}
+                      options={[
+                        { label: "5 per page", value: "5" },
+                        { label: "8 per page", value: "8" },
+                        { label: "10 per page", value: "10" },
+                        { label: "20 per page", value: "20" },
+                        { label: "50 per page", value: "50" },
+                        { label: "100 per page", value: "100" }
+                      ]}
+                      onChange={handleItemsPerPageChange}
+                      placeholder="Page size"
+                      openUpward={true}
+                    />
+                  </div>
                 </div>
+                {totalPages > 1 && (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => setQuizzesPage((prev) => Math.max(prev - 1, 1))} disabled={quizzesPage === 1} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Prev</button>
+                    <button onClick={() => setQuizzesPage((prev) => Math.min(prev + 1, totalPages))} disabled={quizzesPage === totalPages} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Next</button>
+                  </div>
+                )}
               </div>
             )}
           </div>

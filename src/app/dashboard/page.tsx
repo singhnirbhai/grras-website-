@@ -19,6 +19,8 @@ export default function DashboardPage() {
   const [user, setUser] = useState<any>(null);
   const [currentDate, setCurrentDate] = useState<moment.Moment>(() => moment().tz("Asia/Kolkata"));
   const [selectedEvent, setSelectedEvent] = useState<QuizEvent | null>(null);
+  const [selectedDayEvents, setSelectedDayEvents] = useState<QuizEvent[]>([]);
+  const [selectedDayNumber, setSelectedDayNumber] = useState<number | null>(null);
 
   const { data: quizzes = [] } = useQuizzes();
   const { data: batches = [] } = useBatches();
@@ -82,10 +84,14 @@ export default function DashboardPage() {
 
   const prevMonth = () => {
     setCurrentDate((prev) => prev.clone().subtract(1, "month"));
+    setSelectedDayEvents([]);
+    setSelectedDayNumber(null);
   };
 
   const nextMonth = () => {
     setCurrentDate((prev) => prev.clone().add(1, "month"));
+    setSelectedDayEvents([]);
+    setSelectedDayNumber(null);
   };
 
   const formatTime = (isoString: string) => {
@@ -105,6 +111,19 @@ export default function DashboardPage() {
     });
     return map;
   }, [userQuizzes, currentDate]);
+
+  const handleDayClick = (day: number, dayEvents: QuizEvent[]) => {
+    setSelectedDayNumber(day);
+    setSelectedDayEvents(dayEvents);
+    if (typeof window !== "undefined" && window.innerWidth <= 768) {
+      setTimeout(() => {
+        const el = document.getElementById("selected-day-details");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      }, 100);
+    }
+  };
 
   return (
     <DashboardLayout activeTab="dashboard">
@@ -169,17 +188,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Weekday headers */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", borderBottom: "1px solid hsl(var(--border-color))", paddingBottom: "10px", marginBottom: "10px", textAlign: "center" }}>
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <span key={day} style={{ fontSize: "12px", fontWeight: 700, color: "hsl(var(--text-secondary))" }}>
-                {day}
-              </span>
-            ))}
-          </div>
-
-          {/* Monthly grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "minmax(120px, auto)", gap: "1px", backgroundColor: "hsl(var(--border-color))" }}>
+          {/* Responsive Calendar Grid (Visible on all screens) */}
+          <div className="calendar-grid" style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gridAutoRows: "minmax(120px, auto)", gap: "1px", backgroundColor: "hsl(var(--border-color))", border: "1px solid hsl(var(--border-color))", borderRadius: "var(--radius-md)", overflow: "hidden" }}>
             {daysArray.map((date, idx) => {
               if (date === null) {
                 return <div key={`empty-${idx}`} style={{ backgroundColor: "hsl(var(--bg-secondary))", opacity: 0.3 }} />;
@@ -188,34 +198,49 @@ export default function DashboardPage() {
               const day = date.date();
               const isToday = date.isSame(moment().tz("Asia/Kolkata"), "day");
               const dayEvents = eventsByDay[day] || [];
+              const isSelected = selectedDayNumber === day;
 
               return (
                 <div 
                   key={`day-${day}`} 
+                  onClick={() => handleDayClick(day, dayEvents)}
+                  className="calendar-day-cell"
                   style={{ 
-                    backgroundColor: isToday ? "hsla(var(--primary-light) / 0.3)" : "hsl(var(--bg-secondary))", 
+                    backgroundColor: isSelected 
+                      ? "hsl(var(--primary-light))" 
+                      : isToday 
+                      ? "hsla(var(--primary-light) / 0.3)" 
+                      : "hsl(var(--bg-secondary))", 
                     padding: "8px", 
                     display: "flex", 
                     flexDirection: "column", 
                     gap: "6px",
                     position: "relative",
-                    minHeight: "120px"
+                    minHeight: "120px",
+                    cursor: "pointer",
+                    transition: "var(--transition-fast)",
+                    userSelect: "none",
+                    WebkitUserSelect: "none",
                   }}
                 >
                   <span style={{ 
                     fontSize: "12px", 
-                    fontWeight: isToday ? 800 : 600, 
-                    color: isToday ? "hsl(var(--primary))" : "hsl(var(--text-primary))",
+                    fontWeight: isToday || isSelected ? 800 : 600, 
+                    color: isToday || isSelected ? "hsl(var(--primary))" : "hsl(var(--text-primary))",
                     alignSelf: "flex-end"
                   }}>
                     {day}
                   </span>
                   
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, overflowY: "auto" }}>
+                  {/* Desktop view: full text events inside grid cell */}
+                  <div className="calendar-day-event-text" style={{ flexDirection: "column", gap: "4px", flex: 1, overflowY: "auto" }}>
                     {dayEvents.map((event, eventIdx) => (
                       <div 
                         key={eventIdx}
-                        onClick={() => setSelectedEvent(event)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedEvent(event);
+                        }}
                         style={{
                           backgroundColor: "hsl(var(--primary-light))",
                           color: "hsl(var(--primary))",
@@ -241,17 +266,89 @@ export default function DashboardPage() {
                       </div>
                     ))}
                   </div>
+
+                  {/* Mobile view: pill badge representing scheduled events */}
+                  {dayEvents.length > 0 && (
+                    <div className="calendar-day-event-badge-container" style={{ alignSelf: "center", marginTop: "4px" }}>
+                      <div className="calendar-event-badge" style={{
+                        backgroundColor: "hsl(var(--primary))",
+                        color: "white",
+                        padding: "4px 8px",
+                        borderRadius: "12px",
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "2px",
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
+                      }}>
+                        <span className="calendar-event-badge-text">{dayEvents.length} {dayEvents.length === 1 ? "Exam" : "Exams"}</span>
+                        <span className="calendar-event-badge-number-only">{dayEvents.length}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
           </div>
         </div>
+
+        {/* Selected Day events listing below the calendar grid on all screens */}
+        {selectedDayNumber && (
+          <div id="selected-day-details" className="glass animate-fade-in" style={{ marginTop: "24px", padding: "24px", borderRadius: "var(--radius-lg)" }}>
+            <h3 style={{ fontSize: "16px", fontWeight: 800, marginBottom: "16px", color: "hsl(var(--primary))" }}>
+              Assessments Scheduled on {currentDate.format("MMMM")} {selectedDayNumber}, {currentDate.format("YYYY")}
+            </h3>
+            {selectedDayEvents.length === 0 ? (
+              <p style={{ color: "hsl(var(--text-muted))", fontSize: "13px" }}>No exams scheduled for this day.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {selectedDayEvents.map((event, idx) => (
+                  <div 
+                    key={idx}
+                    onClick={() => setSelectedEvent(event)}
+                    style={{
+                      backgroundColor: "hsl(var(--bg-primary))",
+                      border: "1px solid hsl(var(--border-color))",
+                      borderRadius: "var(--radius-md)",
+                      padding: "16px",
+                      cursor: "pointer",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: "12px",
+                      transition: "var(--transition-fast)"
+                    }}
+                    className="dropdown-item-hover"
+                  >
+                    <div>
+                      <h4 style={{ fontWeight: 700, fontSize: "14px", color: "hsl(var(--text-primary))" }}>{event.fileName}</h4>
+                      <p style={{ fontSize: "12px", color: "hsl(var(--text-secondary))", marginTop: "4px" }}>
+                        Batch: <strong style={{ color: "hsl(var(--text-primary))" }}>{event.batch}</strong> • Course: <strong>{event.Course}</strong> • Duration: <strong>{event.duration} mins</strong>
+                      </p>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <span style={{ fontSize: "12px", color: "hsl(var(--text-secondary))", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
+                        <Clock size={14} /> {formatTime(event.startTime)} - {formatTime(event.endTime)}
+                      </span>
+                      <button className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px", height: "auto" }}>
+                        View Details
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Details View Modal */}
       {selectedEvent && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-          <div className="glass" style={{ width: "100%", maxWidth: "500px", padding: "32px", borderRadius: "var(--radius-lg)", backgroundColor: "hsl(var(--bg-secondary))" }}>
+        <div className="modal-overlay-responsive">
+          <div className="glass modal-content-responsive">
             <h2 style={{ fontSize: "20px", fontWeight: 800, marginBottom: "20px" }}>Assessment Schedule Details</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid hsl(var(--border-color))", paddingBottom: "8px" }}>

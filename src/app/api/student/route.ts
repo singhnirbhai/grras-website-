@@ -4,28 +4,37 @@ import { connectDB } from "@/lib/db";
 import { Student } from "@/models/Student";
 import { getAuthenticatedUser } from "@/lib/auth";
 import { sendMail } from "@/lib/sendMail";
+import { measure, nextResponseWithTiming } from "@/lib/perf";
 
 export async function GET(request: Request) {
+  const startTime = performance.now();
   try {
-    await connectDB();
+    const { durationMs: dbConnTime } = await measure("DB Connection (Student GET)", () => connectDB());
     const user = await getAuthenticatedUser();
     if (!user || (user.role !== "admin" && user.role !== "faculty")) {
       return NextResponse.json({ isSuccess: false, message: "Unauthorized. Admin or Faculty role required." }, { status: 403 });
     }
 
     let query = {};
+    let dbQueryTime = 0;
+    
     if (user.role === "faculty") {
       if (!user.course) {
         return NextResponse.json({ isSuccess: false, message: "Faculty member has no course assigned." }, { status: 400 });
       }
       const courseQuery = user.course.toLowerCase().trim();
       const BatchModel = (await import("@/models/Batch")).Batch;
-      const facultyBatches = await BatchModel.find({
-        $or: [
-          { faculty: { $regex: new RegExp(`^${user.email.trim()}$`, "i") } },
-          { faculty: { $regex: new RegExp(`^${user.name?.trim()}$`, "i") } }
-        ]
-      }).select("name");
+      
+      const { result: facultyBatches, durationMs: batchQueryTime } = await measure("Batch.find (Student GET)", () =>
+        BatchModel.find({
+          $or: [
+            { faculty: { $regex: new RegExp(`^${user.email.trim()}$`, "i") } },
+            { faculty: { $regex: new RegExp(`^${user.name?.trim()}$`, "i") } }
+          ]
+        }).select("name")
+      );
+      
+      dbQueryTime += batchQueryTime;
       const batchNames = facultyBatches.map(b => b.name);
 
       query = {
@@ -37,13 +46,25 @@ export async function GET(request: Request) {
       };
     }
 
-    const students = await Student.find(query).select("-password").sort({ createdAt: -1 });
+    const { result: students, durationMs: studentQueryTime } = await measure("Student.find (Student GET)", () =>
+      Student.find(query).select("-password").sort({ createdAt: -1 }).lean()
+    );
+    dbQueryTime += studentQueryTime;
 
-    return NextResponse.json({
-      isSuccess: true,
-      message: "Students retrieved successfully",
-      allData: students,
-    });
+    const totalTime = performance.now() - startTime;
+
+    return nextResponseWithTiming(
+      {
+        isSuccess: true,
+        message: "Students retrieved successfully",
+        allData: students,
+      },
+      {
+        dbConnect: dbConnTime,
+        dbQuery: dbQueryTime,
+        totalApi: totalTime,
+      }
+    );
   } catch (error: any) {
     console.error("GET Student Error:", error);
     return NextResponse.json({ isSuccess: false, message: "Internal Server Error", error: error.message }, { status: 500 });

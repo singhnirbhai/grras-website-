@@ -10,6 +10,26 @@ import { CustomDropdown } from "@/components/ui/CustomDropdown";
 export default function StudentsPage() {
   const [viewMode, setViewMode] = useState<"list" | "form">("list");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("students_items_per_page");
+      return saved ? Number(saved) : 8;
+    }
+    return 8;
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setStudentsPage(1);
+  }, [debouncedSearchTerm]);
+
   const [studentsPage, setStudentsPage] = useState(1);
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [studentForm, setStudentForm] = useState({ name: "", email: "", course: "", batch: "", password: "" });
@@ -40,7 +60,15 @@ export default function StudentsPage() {
   const { data: batches = [] } = useBatches();
   const { data: courses = [] } = useCourses();
   const { data: faculties = [] } = useFaculties();
-  const ITEMS_PER_PAGE = 8;
+
+  const handleItemsPerPageChange = (val: string) => {
+    const size = Number(val);
+    setItemsPerPage(size);
+    setStudentsPage(1);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("students_items_per_page", String(size));
+    }
+  };
 
   // Batches taught by the logged-in faculty or the selected faculty filter (for admin)
   const availableBatchesForFilter = useMemo(() => {
@@ -60,10 +88,13 @@ export default function StudentsPage() {
   const filteredStudents = useMemo(() => {
     return students.filter((s: any) => {
       const matchesSearch =
-        s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.course?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.batch?.toLowerCase().includes(searchTerm.toLowerCase());
+        s.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        s.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        s.course?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        s.batch?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        s.userId?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        s.createdBy?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        (s.assignedAt && new Date(s.assignedAt).toLocaleString().toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
 
       if (!matchesSearch) return false;
 
@@ -88,7 +119,7 @@ export default function StudentsPage() {
 
       return true;
     });
-  }, [students, searchTerm, user, selectedFacultyFilter, selectedBatchFilter, batches]);
+  }, [students, debouncedSearchTerm, user, selectedFacultyFilter, selectedBatchFilter, batches]);
 
   const handleFacultyFilterChange = (val: string) => {
     setSelectedFacultyFilter(val);
@@ -206,12 +237,12 @@ export default function StudentsPage() {
   };
 
   // Pagination helper
-  const totalPages = Math.ceil(filteredStudents.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
   const paginatedStudents = useMemo(() => {
     const sorted = getSortedData(filteredStudents);
-    const start = (studentsPage - 1) * ITEMS_PER_PAGE;
-    return sorted.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredStudents, studentsPage, sortField, sortDirection]);
+    const start = (studentsPage - 1) * itemsPerPage;
+    return sorted.slice(start, start + itemsPerPage);
+  }, [filteredStudents, studentsPage, sortField, sortDirection, itemsPerPage]);
 
   return (
     <DashboardLayout activeTab="students">
@@ -424,7 +455,7 @@ export default function StudentsPage() {
                   ) : (
                     paginatedStudents.map((student: any, idx: number) => (
                       <tr key={student._id} onClick={() => setSelectedDetailItem(student)} style={{ borderBottom: "1px solid hsl(var(--border-color))", transition: "var(--transition-fast)", cursor: "pointer" }} className="dropdown-item-hover">
-                        <td style={{ padding: "16px 24px", fontWeight: 700, color: "hsl(var(--primary))" }}>{(studentsPage - 1) * ITEMS_PER_PAGE + idx + 1}</td>
+                        <td style={{ padding: "16px 24px", fontWeight: 700, color: "hsl(var(--primary))" }}>{(studentsPage - 1) * itemsPerPage + idx + 1}</td>
                         <td style={{ padding: "16px 24px", fontWeight: 600 }}>{student.name}</td>
                         <td style={{ padding: "16px 24px", color: "hsl(var(--text-secondary))" }}>{student.email}</td>
                         <td style={{ padding: "16px 24px", color: "hsl(var(--text-secondary))" }}>{student.batch || "Not assigned"}</td>
@@ -453,13 +484,36 @@ export default function StudentsPage() {
               </table>
             </div>
 
-            {totalPages > 1 && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))" }}>
-                <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>Showing page {studentsPage} of {totalPages}</span>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={() => setStudentsPage((prev) => Math.max(prev - 1, 1))} disabled={studentsPage === 1} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Prev</button>
-                  <button onClick={() => setStudentsPage((prev) => Math.min(prev + 1, totalPages))} disabled={studentsPage === totalPages} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Next</button>
+            {filteredStudents.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))", gap: "16px", flexWrap: "wrap", position: "relative", zIndex: 50 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                  <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>
+                    Showing page {studentsPage} of {totalPages || 1} ({filteredStudents.length} total items)
+                  </span>
+                  <div style={{ width: "130px", marginTop: "-4px" }}>
+                    <CustomDropdown
+                      label=""
+                      value={String(itemsPerPage)}
+                      options={[
+                        { label: "5 per page", value: "5" },
+                        { label: "8 per page", value: "8" },
+                        { label: "10 per page", value: "10" },
+                        { label: "20 per page", value: "20" },
+                        { label: "50 per page", value: "50" },
+                        { label: "100 per page", value: "100" }
+                      ]}
+                      onChange={handleItemsPerPageChange}
+                      placeholder="Page size"
+                      openUpward={true}
+                    />
+                  </div>
                 </div>
+                {totalPages > 1 && (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => setStudentsPage((prev) => Math.max(prev - 1, 1))} disabled={studentsPage === 1} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Prev</button>
+                    <button onClick={() => setStudentsPage((prev) => Math.min(prev + 1, totalPages))} disabled={studentsPage === totalPages} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Next</button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -468,8 +522,8 @@ export default function StudentsPage() {
 
       {/* Detail Modal */}
       {selectedDetailItem && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-          <div className="glass" style={{ width: "100%", maxWidth: "500px", padding: "32px", borderRadius: "var(--radius-lg)", backgroundColor: "hsl(var(--bg-secondary))" }}>
+        <div className="modal-overlay-responsive">
+          <div className="glass modal-content-responsive">
             <h2 style={{ fontSize: "20px", fontWeight: 800, marginBottom: "20px" }}>Student Registry Details</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid hsl(var(--border-color))", paddingBottom: "8px" }}>

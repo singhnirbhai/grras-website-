@@ -21,6 +21,26 @@ const DAY_OPTIONS = [
 export default function BatchesPage() {
   const [viewMode, setViewMode] = useState<"list" | "form" | "view">("list");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("batches_items_per_page");
+      return saved ? Number(saved) : 8;
+    }
+    return 8;
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setBatchesPage(1);
+  }, [debouncedSearchTerm]);
+
   const [batchesPage, setBatchesPage] = useState(1);
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
   const [batchForm, setBatchForm] = useState({ name: "", course: "", faculty: "", students: [] as string[], days: [] as string[], timing: "" });
@@ -43,15 +63,26 @@ export default function BatchesPage() {
   const { data: courses = [] } = useCourses();
   const { data: faculties = [] } = useFaculties();
   const { data: students = [] } = useStudents();
-  const ITEMS_PER_PAGE = 8;
+
+  const handleItemsPerPageChange = (val: string) => {
+    const size = Number(val);
+    setItemsPerPage(size);
+    setBatchesPage(1);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("batches_items_per_page", String(size));
+    }
+  };
 
   const filteredBatches = useMemo(() => {
     return batches.filter(
       (b: any) =>
-        b.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.course?.toLowerCase().includes(searchTerm.toLowerCase())
+        b.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        b.course?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        b.faculty?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        b.timing?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        (b.days && b.days.some((d: string) => d.toLowerCase().includes(debouncedSearchTerm.toLowerCase())))
     );
-  }, [batches, searchTerm]);
+  }, [batches, debouncedSearchTerm]);
 
   const handleCreateBatch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -175,12 +206,12 @@ export default function BatchesPage() {
   };
 
   // Pagination helper
-  const totalPages = Math.ceil(filteredBatches.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredBatches.length / itemsPerPage);
   const paginatedBatches = useMemo(() => {
     const sorted = getSortedData(filteredBatches);
-    const start = (batchesPage - 1) * ITEMS_PER_PAGE;
-    return sorted.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredBatches, batchesPage, sortField, sortDirection]);
+    const start = (batchesPage - 1) * itemsPerPage;
+    return sorted.slice(start, start + itemsPerPage);
+  }, [filteredBatches, batchesPage, sortField, sortDirection, itemsPerPage]);
 
   return (
     <DashboardLayout activeTab="batches">
@@ -326,7 +357,7 @@ export default function BatchesPage() {
                   ) : (
                     paginatedBatches.map((batch: any, idx: number) => (
                       <tr key={batch._id} onClick={() => { setSelectedDetailItem(batch); setViewMode("view"); }} style={{ borderBottom: "1px solid hsl(var(--border-color))", transition: "var(--transition-fast)", cursor: "pointer" }} className="dropdown-item-hover">
-                        <td style={{ padding: "16px 24px", fontWeight: 700, color: "hsl(var(--primary))" }}>{(batchesPage - 1) * ITEMS_PER_PAGE + idx + 1}</td>
+                        <td style={{ padding: "16px 24px", fontWeight: 700, color: "hsl(var(--primary))" }}>{(batchesPage - 1) * itemsPerPage + idx + 1}</td>
                         <td style={{ padding: "16px 24px", fontWeight: 600 }}>{batch.name}</td>
                         <td style={{ padding: "16px 24px", color: "hsl(var(--text-secondary))" }}>{batch.course}</td>
                         <td style={{ padding: "16px 24px", color: "hsl(var(--text-secondary))" }}>{batch.faculty || "Not assigned"}</td>
@@ -358,13 +389,36 @@ export default function BatchesPage() {
               </table>
             </div>
 
-            {totalPages > 1 && (
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))" }}>
-                <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>Showing page {batchesPage} of {totalPages}</span>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button onClick={() => setBatchesPage((prev) => Math.max(prev - 1, 1))} disabled={batchesPage === 1} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Prev</button>
-                  <button onClick={() => setBatchesPage((prev) => Math.min(prev + 1, totalPages))} disabled={batchesPage === totalPages} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Next</button>
+            {filteredBatches.length > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))", gap: "16px", flexWrap: "wrap", position: "relative", zIndex: 50 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                  <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>
+                    Showing page {batchesPage} of {totalPages || 1} ({filteredBatches.length} total items)
+                  </span>
+                  <div style={{ width: "130px", marginTop: "-4px" }}>
+                    <CustomDropdown
+                      label=""
+                      value={String(itemsPerPage)}
+                      options={[
+                        { label: "5 per page", value: "5" },
+                        { label: "8 per page", value: "8" },
+                        { label: "10 per page", value: "10" },
+                        { label: "20 per page", value: "20" },
+                        { label: "50 per page", value: "50" },
+                        { label: "100 per page", value: "100" }
+                      ]}
+                      onChange={handleItemsPerPageChange}
+                      placeholder="Page size"
+                      openUpward={true}
+                    />
+                  </div>
                 </div>
+                {totalPages > 1 && (
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button onClick={() => setBatchesPage((prev) => Math.max(prev - 1, 1))} disabled={batchesPage === 1} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Prev</button>
+                    <button onClick={() => setBatchesPage((prev) => Math.min(prev + 1, totalPages))} disabled={batchesPage === totalPages} className="btn-secondary" style={{ padding: "6px 12px", fontSize: "12px" }}>Next</button>
+                  </div>
+                )}
               </div>
             )}
           </div>

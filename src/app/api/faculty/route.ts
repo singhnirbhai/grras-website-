@@ -13,7 +13,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ isSuccess: false, message: "Unauthorized. Admin role required." }, { status: 403 });
     }
 
-    const faculties = await Faculty.find().select("-password").sort({ createdAt: -1 });
+    const faculties = await Faculty.find().select("-password").sort({ createdAt: -1 }).lean();
     return NextResponse.json({
       isSuccess: true,
       message: "Faculties retrieved successfully",

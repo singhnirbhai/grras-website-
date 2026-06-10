@@ -238,6 +238,32 @@ body {
   display: none !important;
 }
 
+/* Details and Configuration Modals (Global) */
+.modal-overlay-responsive {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background-color: rgba(0,0,0,0.5) !important;
+  z-index: 1000 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 16px !important;
+}
+
+.modal-content-responsive {
+  width: 100% !important;
+  max-width: 600px !important;
+  padding: 32px 24px !important;
+  border-radius: var(--radius-lg) !important;
+  background-color: hsl(var(--bg-secondary)) !important;
+  max-height: 90vh !important;
+  overflow-y: auto !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
 /* Responsive Utilities */
 @media (max-width: 1024px) {
   .header-toggle-btn {
@@ -262,6 +288,9 @@ body {
     width: 260px !important;
     border-right: 1px solid hsl(var(--border-color)) !important;
     border-bottom: none !important;
+  }
+  
+  .sidebar-responsive.sidebar-ready {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   }
   
@@ -338,5 +367,117 @@ table tbody tr:hover {
 table td {
   padding: 16px 24px !important;
   vertical-align: middle;
+}
+
+/* Global Mobile Responsiveness Helper Rules */
+@media (max-width: 768px) {
+  /* Collapse all display grid forms & layouts to a single column, excluding the calendar grid */
+  div[style*="display: grid"]:not(.calendar-grid), 
+  div[style*="display:grid"]:not(.calendar-grid) {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* Table Header Controls (Search, Filters, Create/Register Buttons) */
+  .glass > div[style*="display: flex"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding: 16px !important;
+  }
+
+  .glass > div[style*="display: flex"] > div {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .glass > div[style*="display: flex"] > div > input,
+  .glass > div[style*="display: flex"] > div > div {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .glass > div[style*="display: flex"] > button,
+  .glass > div[style*="display: flex"] > div > button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Table padding optimizations for smaller screens */
+  table th, table td {
+    padding: 12px 14px !important;
+    font-size: 13px !important;
+  }
+
+  /* Pagination Footer selector formatting */
+  div[style*="justify-content: space-between"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  /* Calendar Responsive Styling */
+  .calendar-grid {
+    grid-template-columns: repeat(7, 1fr) !important;
+    grid-auto-rows: minmax(60px, auto) !important;
+  }
+  
+  .calendar-day-cell {
+    min-height: 60px !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+  
+  .calendar-day-event-text {
+    display: none !important;
+  }
+  
+  .calendar-day-event-badge-container {
+    display: block !important;
+  }
+
+  .calendar-event-badge-text {
+    display: none !important;
+  }
+  
+  .calendar-event-badge-number-only {
+    display: inline !important;
+  }
+  
+  .calendar-event-badge {
+    padding: 2px 6px !important;
+    border-radius: var(--radius-full) !important;
+    min-width: 20px !important;
+    height: 20px !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+}
+
+/* Base styles for calendar containers */
+.calendar-day-event-text {
+  display: flex;
+}
+
+.calendar-day-event-badge-container {
+  display: none;
+}
+
+/* Medium screens: hide text and show badge with '2 Exams' text */
+@media (max-width: 1150px) and (min-width: 769px) {
+  .calendar-day-event-text {
+    display: none !important;
+  }
+  .calendar-day-event-badge-container {
+    display: block !important;
+  }
+  .calendar-event-badge-text {
+    display: inline !important;
+  }
+  .calendar-event-badge-number-only {
+    display: none !important;
+  }
 }
 

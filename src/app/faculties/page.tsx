@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Plus, Table, Kanban, ArrowLeft } from "lucide-react";
 import Swal from "sweetalert2";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -8,10 +8,31 @@ import { useFaculties, useCourses } from "@/hooks/useDashboardData";
 import { FacultyTable } from "@/app/dashboard/components/FacultyTable";
 import { FacultyKanban } from "@/app/dashboard/components/FacultyKanban";
 import { FacultyForm } from "@/app/dashboard/components/FacultyForm";
+import { CustomDropdown } from "@/components/ui/CustomDropdown";
 
 export default function FacultiesPage() {
   const [viewMode, setViewMode] = useState<"list" | "form">("list");
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("faculties_items_per_page");
+      return saved ? Number(saved) : 8;
+    }
+    return 8;
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setFacultiesPage(1);
+  }, [debouncedSearchTerm]);
+
   const [facultyViewMode, setFacultyViewMode] = useState<"table" | "kanban">("table");
   const [facultiesPage, setFacultiesPage] = useState(1);
   const [editingFacultyId, setEditingFacultyId] = useState<string | null>(null);
@@ -22,19 +43,27 @@ export default function FacultiesPage() {
   // Sorting states
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-  const ITEMS_PER_PAGE = 8;
 
   const { data: faculties = [], refetch: refetchFaculties } = useFaculties();
   const { data: courses = [] } = useCourses();
 
+  const handleItemsPerPageChange = (val: string) => {
+    const size = Number(val);
+    setItemsPerPage(size);
+    setFacultiesPage(1);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("faculties_items_per_page", String(size));
+    }
+  };
+
   const filteredFaculties = useMemo(() => {
     return faculties.filter(
       (f: any) =>
-        f.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        f.course?.toLowerCase().includes(searchTerm.toLowerCase())
+        f.name?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        f.email?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        f.course?.toLowerCase().includes(debouncedSearchTerm.toLowerCase())
     );
-  }, [faculties, searchTerm]);
+  }, [faculties, debouncedSearchTerm]);
 
   const handleCreateFaculty = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,32 +168,53 @@ export default function FacultiesPage() {
   };
 
   const renderPagination = (currentPage: number, totalItems: number, onPageChange: (page: number) => void) => {
-    const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-    if (totalPages <= 1) return null;
+    const totalPages = Math.ceil(totalItems / itemsPerPage);
+    if (totalItems === 0) return null;
 
     return (
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))" }}>
-        <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>
-          Showing page {currentPage} of {totalPages} ({totalItems} total items)
-        </span>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="btn-secondary"
-            style={{ padding: "6px 12px", height: "auto", fontSize: "12px", cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
-          >
-            Prev
-          </button>
-          <button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="btn-secondary"
-            style={{ padding: "6px 12px", height: "auto", fontSize: "12px", cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
-          >
-            Next
-          </button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "16px", padding: "12px 24px", borderTop: "1px solid hsl(var(--border-color))", gap: "16px", flexWrap: "wrap", position: "relative", zIndex: 50 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <span style={{ fontSize: "13px", color: "hsl(var(--text-secondary))" }}>
+            Showing page {currentPage} of {totalPages || 1} ({totalItems} total items)
+          </span>
+          <div style={{ width: "130px", marginTop: "-4px" }}>
+            <CustomDropdown
+              label=""
+              value={String(itemsPerPage)}
+              options={[
+                { label: "5 per page", value: "5" },
+                { label: "8 per page", value: "8" },
+                { label: "10 per page", value: "10" },
+                { label: "20 per page", value: "20" },
+                { label: "50 per page", value: "50" },
+                { label: "100 per page", value: "100" }
+              ]}
+              onChange={handleItemsPerPageChange}
+              placeholder="Page size"
+              openUpward={true}
+            />
+          </div>
         </div>
+        {totalPages > 1 && (
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="btn-secondary"
+              style={{ padding: "6px 12px", height: "auto", fontSize: "12px", cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+            >
+              Prev
+            </button>
+            <button
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="btn-secondary"
+              style={{ padding: "6px 12px", height: "auto", fontSize: "12px", cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     );
   };
@@ -230,18 +280,22 @@ export default function FacultiesPage() {
                 className="input-field"
                 style={{ maxWidth: "320px", height: "40px" }}
               />
-              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                <div style={{ display: "flex", backgroundColor: "hsl(var(--bg-secondary))", border: "1px solid hsl(var(--border-color))", borderRadius: "var(--radius-md)", padding: "4px" }}>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }} className="view-toggle-responsive">
+                <div style={{ display: "flex", backgroundColor: "hsl(var(--bg-secondary))", border: "1px solid hsl(var(--border-color))", borderRadius: "var(--radius-md)", padding: "4px", flex: 1 }}>
                   <button
                     onClick={() => setFacultyViewMode("table")}
                     className={`btn-secondary ${facultyViewMode === "table" ? "active" : ""}`}
                     style={{
+                      flex: 1,
                       padding: "8px",
                       borderRadius: "var(--radius-sm)",
                       backgroundColor: facultyViewMode === "table" ? "hsl(var(--primary-light))" : "transparent",
                       color: facultyViewMode === "table" ? "hsl(var(--primary))" : "hsl(var(--text-secondary))",
                       border: "none",
                       cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
                     <Table size={18} />
@@ -250,12 +304,16 @@ export default function FacultiesPage() {
                     onClick={() => setFacultyViewMode("kanban")}
                     className={`btn-secondary ${facultyViewMode === "kanban" ? "active" : ""}`}
                     style={{
+                      flex: 1,
                       padding: "8px",
                       borderRadius: "var(--radius-sm)",
                       backgroundColor: facultyViewMode === "kanban" ? "hsl(var(--primary-light))" : "transparent",
                       color: facultyViewMode === "kanban" ? "hsl(var(--primary))" : "hsl(var(--text-secondary))",
                       border: "none",
                       cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
                     <Kanban size={18} />
@@ -286,13 +344,13 @@ export default function FacultiesPage() {
                 getSortedData={getSortedData}
                 page={facultiesPage}
                 setPage={setFacultiesPage}
-                itemsPerPage={ITEMS_PER_PAGE}
+                itemsPerPage={itemsPerPage}
                 renderPagination={renderPagination}
               />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "24px", padding: "24px" }}>
                 <FacultyKanban
-                  faculties={getSortedData(filteredFaculties).slice((facultiesPage - 1) * ITEMS_PER_PAGE, facultiesPage * ITEMS_PER_PAGE)}
+                  faculties={getSortedData(filteredFaculties).slice((facultiesPage - 1) * itemsPerPage, facultiesPage * itemsPerPage)}
                   onEdit={handleOpenEditFaculty}
                   onDelete={handleDeleteFaculty}
                 />
@@ -304,8 +362,8 @@ export default function FacultiesPage() {
       )}
       {/* Detail Modal */}
       {selectedDetailItem && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px" }}>
-          <div className="glass" style={{ width: "100%", maxWidth: "500px", padding: "32px", borderRadius: "var(--radius-lg)", backgroundColor: "hsl(var(--bg-secondary))" }}>
+        <div className="modal-overlay-responsive">
+          <div className="glass modal-content-responsive">
             <h2 style={{ fontSize: "20px", fontWeight: 800, marginBottom: "20px" }}>Faculty Instructor Details</h2>
             <div style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", borderBottom: "1px solid hsl(var(--border-color))", paddingBottom: "8px" }}>
