@@ -371,36 +371,36 @@ table td {
 
 /* Global Mobile Responsiveness Helper Rules */
 @media (max-width: 768px) {
-  /* Collapse all display grid forms & layouts to a single column, excluding the calendar grid and login tabs */
-  div[style*="display: grid"]:not(.calendar-grid):not(.login-role-tabs), 
-  div[style*="display:grid"]:not(.calendar-grid):not(.login-role-tabs) {
+  /* Collapse all display grid forms & layouts to a single column, excluding the calendar grid, login tabs, and faculty kanban grid */
+  div[style*="display: grid"]:not(.calendar-grid):not(.login-role-tabs):not(.faculty-kanban-grid), 
+  div[style*="display:grid"]:not(.calendar-grid):not(.login-role-tabs):not(.faculty-kanban-grid) {
     grid-template-columns: 1fr !important;
     gap: 16px !important;
   }
 
-  /* Table Header Controls (Search, Filters, Create/Register Buttons) */
-  .glass > div[style*="display: flex"] {
+  /* Table Header Controls (Search, Filters, Create/Register Buttons) - Exclude Kanban/Faculty cards and metadata containers */
+  .glass:not(.faculty-card) > div[style*="display: flex"]:not(.faculty-card-header):not(.faculty-card-footer) {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 12px !important;
     padding: 16px !important;
   }
 
-  .glass > div[style*="display: flex"] > div {
+  .glass:not(.faculty-card) > div[style*="display: flex"]:not(.faculty-card-header):not(.faculty-card-footer) > div {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 12px !important;
     width: 100% !important;
   }
 
-  .glass > div[style*="display: flex"] > div > input,
-  .glass > div[style*="display: flex"] > div > div {
+  .glass:not(.faculty-card) > div[style*="display: flex"]:not(.faculty-card-header) > div > input,
+  .glass:not(.faculty-card) > div[style*="display: flex"]:not(.faculty-card-header) > div > div {
     max-width: 100% !important;
     width: 100% !important;
   }
 
-  .glass > div[style*="display: flex"] > button,
-  .glass > div[style*="display: flex"] > div > button {
+  .glass:not(.faculty-card) > div[style*="display: flex"]:not(.faculty-card-header) > button,
+  .glass:not(.faculty-card) > div[style*="display: flex"]:not(.faculty-card-header) > div > button {
     width: 100% !important;
     justify-content: center !important;
   }
@@ -505,4 +505,6 @@ header {
     margin-top: 80px !important; /* Offset the 80px fixed header height */
   }
 }
+
+
 
