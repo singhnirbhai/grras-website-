@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Eye, Trash2, Calendar, Clock, Trophy, ChevronLeft, CheckCircle2, XCircle, Award } from "lucide-react";
+import { Eye, Trash2, Calendar, Clock, Trophy, ChevronLeft, CheckCircle2, XCircle, Award, Loader2 } from "lucide-react";
 import Swal from "sweetalert2";
 import moment from "moment-timezone";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -18,6 +18,7 @@ export default function ResultsPage() {
 
   const [selectedFaculty, setSelectedFaculty] = useState<string>("");
   const [selectedBatch, setSelectedBatch] = useState<string>("");
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/profile")
@@ -165,11 +166,18 @@ export default function ResultsPage() {
     });
 
     if (confirm.isConfirmed) {
-      const res = await fetch(`/api/quiz/results?id=${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.isSuccess) {
-        Swal.fire("Deleted", "Result record deleted", "success");
-        refetchResults();
+      setIsDeleting(id);
+      try {
+        const res = await fetch(`/api/quiz/results?id=${id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (data.isSuccess) {
+          Swal.fire("Deleted", "Result record deleted", "success");
+          refetchResults();
+        }
+      } catch (err) {
+        Swal.fire("Error", "Failed to delete result record", "error");
+      } finally {
+        setIsDeleting(null);
       }
     }
   };
@@ -409,6 +417,7 @@ export default function ResultsPage() {
                                   setSelectedStudentResult(res);
                                   setViewState("detail");
                                 }}
+                                disabled={isDeleting !== null}
                                 className="btn-secondary"
                                 style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}
                               >
@@ -416,10 +425,16 @@ export default function ResultsPage() {
                               </button>
                               <button
                                 onClick={(e) => handleDeleteResult(res._id, e)}
+                                disabled={isDeleting !== null}
                                 className="btn-secondary"
                                 style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}
                               >
-                                <Trash2 size={14} /> Delete
+                                {isDeleting === res._id ? (
+                                  <Loader2 size={14} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                                ) : (
+                                  <Trash2 size={14} />
+                                )}
+                                Delete
                               </button>
                             </div>
                           </td>

@@ -39,6 +39,8 @@ export default function FacultiesPage() {
   const [facultyForm, setFacultyForm] = useState({ name: "", email: "", course: "", password: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [selectedDetailItem, setSelectedDetailItem] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   // Sorting states
   const [sortField, setSortField] = useState<string | null>(null);
@@ -78,6 +80,7 @@ export default function FacultiesPage() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const url = editingFacultyId ? `/api/faculty?id=${editingFacultyId}` : "/api/faculty";
       const method = editingFacultyId ? "PUT" : "POST";
@@ -99,6 +102,8 @@ export default function FacultiesPage() {
       }
     } catch (e) {
       Swal.fire("Error", "Server error occurred", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -112,11 +117,18 @@ export default function FacultiesPage() {
     });
 
     if (confirm.isConfirmed) {
-      const res = await fetch(`/api/faculty?id=${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.isSuccess) {
-        Swal.fire("Deleted", "Faculty deleted successfully", "success");
-        refetchFaculties();
+      setIsDeleting(id);
+      try {
+        const res = await fetch(`/api/faculty?id=${id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (data.isSuccess) {
+          Swal.fire("Deleted", "Faculty deleted successfully", "success");
+          refetchFaculties();
+        }
+      } catch (e) {
+        Swal.fire("Error", "Failed to delete faculty", "error");
+      } finally {
+        setIsDeleting(null);
       }
     }
   };
@@ -259,6 +271,7 @@ export default function FacultiesPage() {
               setFormErrors({});
               setEditingFacultyId(null);
             }}
+            isSubmitting={isSubmitting}
           />
         </div>
       ) : (
@@ -346,6 +359,7 @@ export default function FacultiesPage() {
                 setPage={setFacultiesPage}
                 itemsPerPage={itemsPerPage}
                 renderPagination={renderPagination}
+                isDeleting={isDeleting}
               />
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "24px", padding: "24px" }}>
@@ -353,6 +367,7 @@ export default function FacultiesPage() {
                   faculties={getSortedData(filteredFaculties).slice((facultiesPage - 1) * itemsPerPage, facultiesPage * itemsPerPage)}
                   onEdit={handleOpenEditFaculty}
                   onDelete={handleDeleteFaculty}
+                  isDeleting={isDeleting}
                 />
                 {renderPagination(facultiesPage, filteredFaculties.length, setFacultiesPage)}
               </div>

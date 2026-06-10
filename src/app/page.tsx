@@ -16,14 +16,24 @@ export default function LoginPage() {
 
   useEffect(() => {
     // Check if user is already logged in
-    fetch("/api/auth/profile")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.isSuccess && data.user) {
-          router.push("/dashboard");
-        }
-      })
-      .catch((err) => console.log("Not logged in"));
+    const checkLogin = () => {
+      fetch("/api/auth/profile")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.isSuccess && data.user) {
+            router.push("/dashboard");
+          }
+        })
+        .catch((err) => console.log("Not logged in"));
+    };
+
+    checkLogin();
+
+    // Check again when user focuses the tab
+    window.addEventListener("focus", checkLogin);
+    return () => {
+      window.removeEventListener("focus", checkLogin);
+    };
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {

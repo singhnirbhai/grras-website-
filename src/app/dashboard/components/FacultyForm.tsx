@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo, useState } from "react";
-import { X, Eye, EyeOff, Sparkles, ArrowLeft } from "lucide-react";
+import { X, Eye, EyeOff, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
 import { CustomDropdown } from "@/components/ui/CustomDropdown";
 
 interface FacultyFormProps {
@@ -12,6 +12,7 @@ interface FacultyFormProps {
   courses: any[];
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
+  isSubmitting?: boolean;
 }
 
 export const FacultyForm = memo(({
@@ -22,6 +23,7 @@ export const FacultyForm = memo(({
   courses,
   onSubmit,
   onCancel,
+  isSubmitting = false,
 }: FacultyFormProps) => {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -130,14 +132,19 @@ export const FacultyForm = memo(({
       <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
         <button 
           type="button" 
+          disabled={isSubmitting}
           onClick={onCancel} 
           className="btn-secondary" 
           style={{ minWidth: "120px", height: "46px" }}
         >
           Cancel
         </button>
-        <button type="submit" className="btn-primary" style={{ minWidth: "140px", height: "46px" }}>
-          {editingFacultyId ? "Save Updates" : "Create Account"}
+        <button type="submit" disabled={isSubmitting} className="btn-primary" style={{ minWidth: "140px", height: "46px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+          {isSubmitting ? (
+            <Loader2 size={18} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+          ) : (
+            editingFacultyId ? "Save Updates" : "Create Account"
+          )}
         </button>
       </div>
     </form>

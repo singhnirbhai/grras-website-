@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Plus, Edit3, Trash2 } from "lucide-react";
+import { Plus, Edit3, Trash2, Loader2 } from "lucide-react";
 import Swal from "sweetalert2";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useCourses } from "@/hooks/useDashboardData";
@@ -35,6 +35,8 @@ export default function CoursesPage() {
   const [courseForm, setCourseForm] = useState({ name: "", description: "" });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [selectedDetailItem, setSelectedDetailItem] = useState<any>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const { data: courses = [], refetch: refetchCourses } = useCourses();
 
@@ -65,6 +67,7 @@ export default function CoursesPage() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const url = editingCourseId ? `/api/course?id=${editingCourseId}` : "/api/course";
       const method = editingCourseId ? "PUT" : "POST";
@@ -86,6 +89,8 @@ export default function CoursesPage() {
       }
     } catch (e) {
       Swal.fire("Error", "Server error occurred", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -99,11 +104,18 @@ export default function CoursesPage() {
     });
 
     if (confirm.isConfirmed) {
-      const res = await fetch(`/api/course?id=${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.isSuccess) {
-        Swal.fire("Deleted", "Course deleted successfully", "success");
-        refetchCourses();
+      setIsDeleting(id);
+      try {
+        const res = await fetch(`/api/course?id=${id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (data.isSuccess) {
+          Swal.fire("Deleted", "Course deleted successfully", "success");
+          refetchCourses();
+        }
+      } catch (e) {
+        Swal.fire("Error", "Failed to delete course", "error");
+      } finally {
+        setIsDeleting(null);
       }
     }
   };
@@ -187,8 +199,14 @@ export default function CoursesPage() {
               <textarea placeholder="Describe course..." value={courseForm.description} onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })} className="input-field" style={{ height: "120px", resize: "none" }} />
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
-              <button type="button" onClick={() => { setViewMode("list"); setEditingCourseId(null); setFormErrors({}); }} className="btn-secondary" style={{ minWidth: "120px", height: "46px" }}>Cancel</button>
-              <button type="submit" className="btn-primary" style={{ minWidth: "140px", height: "46px" }}>{editingCourseId ? "Save Updates" : "Create Course"}</button>
+              <button type="button" disabled={isSubmitting} onClick={() => { setViewMode("list"); setEditingCourseId(null); setFormErrors({}); }} className="btn-secondary" style={{ minWidth: "120px", height: "46px" }}>Cancel</button>
+              <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ minWidth: "140px", height: "46px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                {isSubmitting ? (
+                  <Loader2 size={18} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                ) : (
+                  editingCourseId ? "Save Updates" : "Create Course"
+                )}
+              </button>
             </div>
           </form>
         </div>
@@ -247,12 +265,16 @@ export default function CoursesPage() {
                         <td style={{ padding: "16px 24px", color: "hsl(var(--text-secondary))", maxWidth: "400px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{course.description || "No description provided."}</td>
                         <td style={{ padding: "16px 24px", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                           <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                            <button onClick={() => handleOpenEditCourse(course)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>
+                            <button onClick={() => handleOpenEditCourse(course)} disabled={isDeleting !== null} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>
                               <Edit3 size={14} />
                               Edit
                             </button>
-                            <button onClick={() => handleDeleteCourse(course._id)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}>
-                              <Trash2 size={14} />
+                            <button onClick={() => handleDeleteCourse(course._id)} disabled={isDeleting !== null} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}>
+                              {isDeleting === course._id ? (
+                                <Loader2 size={14} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                              ) : (
+                                <Trash2 size={14} />
+                              )}
                               Delete
                             </button>
                           </div>

@@ -1,18 +1,20 @@
 "use client";
 
 import React, { memo } from "react";
-import { Edit3, Trash2, BookOpen } from "lucide-react";
+import { Edit3, Trash2, BookOpen, Loader2 } from "lucide-react";
 
 interface FacultyKanbanProps {
   faculties: any[];
   onEdit: (faculty: any) => void;
   onDelete: (id: string) => void;
+  isDeleting?: string | null;
 }
 
 export const FacultyKanban = memo(({
   faculties,
   onEdit,
   onDelete,
+  isDeleting = null,
 }: FacultyKanbanProps) => {
   return (
     <div className="faculty-kanban-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 300px), 1fr))", gap: "20px" }}>
@@ -26,8 +28,14 @@ export const FacultyKanban = memo(({
                 {f.name?.charAt(0)}
               </div>
               <div style={{ display: "flex", gap: "8px" }}>
-                <button onClick={() => onEdit(f)} style={{ padding: "6px", color: "hsl(var(--primary))", background: "none", border: "none", cursor: "pointer" }} title="Edit"><Edit3 size={16} /></button>
-                <button onClick={() => onDelete(f._id)} style={{ padding: "6px", color: "hsl(var(--danger))", background: "none", border: "none", cursor: "pointer" }} title="Delete"><Trash2 size={16} /></button>
+                <button onClick={() => onEdit(f)} disabled={isDeleting !== null} style={{ padding: "6px", color: "hsl(var(--primary))", background: "none", border: "none", cursor: isDeleting !== null ? "not-allowed" : "pointer" }} title="Edit"><Edit3 size={16} /></button>
+                <button onClick={() => onDelete(f._id)} disabled={isDeleting !== null} style={{ padding: "6px", color: "hsl(var(--danger))", background: "none", border: "none", cursor: isDeleting !== null ? "not-allowed" : "pointer" }} title="Delete">
+                  {isDeleting === f._id ? (
+                    <Loader2 size={16} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                  ) : (
+                    <Trash2 size={16} />
+                  )}
+                </button>
               </div>
             </div>
             <h3 style={{ fontSize: "16px", fontWeight: 700, marginBottom: "4px" }}>{f.name}</h3>

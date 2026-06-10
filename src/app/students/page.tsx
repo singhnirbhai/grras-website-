@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Plus, Edit3, Trash2, Eye, EyeOff, Sparkles, ArrowLeft } from "lucide-react";
+import { Plus, Edit3, Trash2, Eye, EyeOff, Sparkles, ArrowLeft, Loader2 } from "lucide-react";
 import Swal from "sweetalert2";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useStudents, useBatches, useCourses, useFaculties } from "@/hooks/useDashboardData";
@@ -38,6 +38,8 @@ export default function StudentsPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [selectedFacultyFilter, setSelectedFacultyFilter] = useState<string>("");
   const [selectedBatchFilter, setSelectedBatchFilter] = useState<string>("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const generateRandomPassword = () => {
     const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
@@ -139,6 +141,7 @@ export default function StudentsPage() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const payload = user?.role === "faculty" ? { ...studentForm, course: user.course } : studentForm;
       const url = editingStudentId ? `/api/student?id=${editingStudentId}` : "/api/student";
@@ -161,6 +164,8 @@ export default function StudentsPage() {
       }
     } catch (e) {
       Swal.fire("Error", "Server error occurred", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -174,11 +179,18 @@ export default function StudentsPage() {
     });
 
     if (confirm.isConfirmed) {
-      const res = await fetch(`/api/student?id=${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.isSuccess) {
-        Swal.fire("Deleted", "Student deleted successfully", "success");
-        refetchStudents();
+      setIsDeleting(id);
+      try {
+        const res = await fetch(`/api/student?id=${id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (data.isSuccess) {
+          Swal.fire("Deleted", "Student deleted successfully", "success");
+          refetchStudents();
+        }
+      } catch (e) {
+        Swal.fire("Error", "Failed to delete student", "error");
+      } finally {
+        setIsDeleting(null);
       }
     }
   };
@@ -360,13 +372,20 @@ export default function StudentsPage() {
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
               <button 
                 type="button" 
+                disabled={isSubmitting}
                 onClick={() => { setViewMode("list"); setEditingStudentId(null); setFormErrors({}); }} 
                 className="btn-secondary" 
                 style={{ minWidth: "120px", height: "46px" }}
               >
                 Cancel
               </button>
-              <button type="submit" className="btn-primary" style={{ minWidth: "140px", height: "46px" }}>{editingStudentId ? "Save Updates" : "Register Student"}</button>
+              <button type="submit" disabled={isSubmitting} className="btn-primary" style={{ minWidth: "140px", height: "46px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                {isSubmitting ? (
+                  <Loader2 size={18} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                ) : (
+                  editingStudentId ? "Save Updates" : "Register Student"
+                )}
+              </button>
             </div>
           </form>
         </div>
@@ -466,12 +485,16 @@ export default function StudentsPage() {
                         {(user?.role === "admin" || user?.role === "faculty") && (
                           <td style={{ padding: "16px 24px", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                              <button onClick={() => handleOpenEditStudent(student)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>
+                              <button onClick={() => handleOpenEditStudent(student)} disabled={isDeleting !== null} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>
                                 <Edit3 size={14} />
                                 Edit
                               </button>
-                              <button onClick={() => handleDeleteStudent(student._id)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}>
-                                <Trash2 size={14} />
+                              <button onClick={() => handleDeleteStudent(student._id)} disabled={isDeleting !== null} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}>
+                                {isDeleting === student._id ? (
+                                  <Loader2 size={14} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                                ) : (
+                                  <Trash2 size={14} />
+                                )}
                                 Delete
                               </button>
                             </div>

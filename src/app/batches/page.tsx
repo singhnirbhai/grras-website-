@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Plus, Edit3, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Edit3, Trash2, ArrowLeft, Loader2 } from "lucide-react";
 import Swal from "sweetalert2";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useBatches, useCourses, useFaculties, useStudents } from "@/hooks/useDashboardData";
@@ -52,6 +52,8 @@ export default function BatchesPage() {
   const [selectedDetailItem, setSelectedDetailItem] = useState<any>(null);
   const [user, setUser] = useState<any>(null);
   const [initialBatchStudents, setInitialBatchStudents] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/profile")
@@ -109,6 +111,7 @@ export default function BatchesPage() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const url = editingBatchId ? `/api/batch?id=${editingBatchId}` : "/api/batch";
       const method = editingBatchId ? "PUT" : "POST";
@@ -132,6 +135,8 @@ export default function BatchesPage() {
       }
     } catch (e) {
       Swal.fire("Error", "Server error occurred", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -145,11 +150,18 @@ export default function BatchesPage() {
     });
 
     if (confirm.isConfirmed) {
-      const res = await fetch(`/api/batch?id=${id}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.isSuccess) {
-        Swal.fire("Deleted", "Batch deleted successfully", "success");
-        refetchBatches();
+      setIsDeleting(id);
+      try {
+        const res = await fetch(`/api/batch?id=${id}`, { method: "DELETE" });
+        const data = await res.json();
+        if (data.isSuccess) {
+          Swal.fire("Deleted", "Batch deleted successfully", "success");
+          refetchBatches();
+        }
+      } catch (e) {
+        Swal.fire("Error", "Failed to delete batch", "error");
+      } finally {
+        setIsDeleting(null);
       }
     }
   };
@@ -323,8 +335,14 @@ export default function BatchesPage() {
               </>
             )}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
-              <button type="button" onClick={() => { setViewMode("list"); setEditingBatchId(null); setFormErrors({}); }} className="btn-secondary" style={{ minWidth: "120px", height: "46px" }}>Cancel</button>
-              <button type="submit" className="btn-primary" style={{ minWidth: "140px", height: "46px" }}>{editingBatchId ? "Save Updates" : "Create Batch"}</button>
+              <button type="button" disabled={isSubmitting} onClick={() => { setViewMode("list"); setEditingBatchId(null); setFormErrors({}); }} className="btn-secondary" style={{ minWidth: "120px", height: "46px" }}>Cancel</button>
+              <button type="submit" className="btn-primary" disabled={isSubmitting} style={{ minWidth: "140px", height: "46px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                {isSubmitting ? (
+                  <Loader2 size={16} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                ) : (
+                  editingBatchId ? "Save Updates" : "Create Batch"
+                )}
+              </button>
             </div>
           </form>
         </div>
@@ -415,13 +433,17 @@ export default function BatchesPage() {
                         {(user?.role === "admin" || user?.role === "faculty") && (
                           <td style={{ padding: "16px 24px", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                              <button onClick={() => handleOpenEditBatch(batch)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>
+                              <button onClick={() => handleOpenEditBatch(batch)} disabled={isDeleting !== null} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>
                                 <Edit3 size={14} />
                                 Edit
                               </button>
                               {user?.role === "admin" && (
-                                <button onClick={() => handleDeleteBatch(batch._id)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}>
-                                  <Trash2 size={14} />
+                                <button onClick={() => handleDeleteBatch(batch._id)} disabled={isDeleting !== null} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}>
+                                  {isDeleting === batch._id ? (
+                                    <Loader2 size={14} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                                  ) : (
+                                    <Trash2 size={14} />
+                                  )}
                                   Delete
                                 </button>
                               )}

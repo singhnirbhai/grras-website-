@@ -3,10 +3,12 @@
 import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { Loader2 } from "lucide-react";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [profileForm, setProfileForm] = useState({ name: "", email: "", password: "" });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetch("/api/auth/profile")
@@ -21,6 +23,7 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const res = await fetch("/api/auth/profile", {
         method: "PUT",
@@ -41,6 +44,8 @@ export default function ProfilePage() {
       }
     } catch (e) {
       Swal.fire("Error", "Server error occurred", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -75,7 +80,13 @@ export default function ProfilePage() {
               </div>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
-              <button type="submit" className="btn-primary" style={{ minWidth: "140px", height: "46px" }}>Save Changes</button>
+              <button type="submit" disabled={isSubmitting} className="btn-primary" style={{ minWidth: "140px", height: "46px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                {isSubmitting ? (
+                  <Loader2 size={18} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                ) : (
+                  "Save Changes"
+                )}
+              </button>
             </div>
           </form>
         </div>

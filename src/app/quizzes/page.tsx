@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Plus, Edit3, Trash2, Calendar, Clock, Trophy, Download, Timer, ArrowLeft } from "lucide-react";
+import { Plus, Edit3, Trash2, Calendar, Clock, Trophy, Download, Timer, ArrowLeft, Loader2 } from "lucide-react";
 import Swal from "sweetalert2";
 import * as XLSX from "xlsx";
 import moment from "moment-timezone";
@@ -17,6 +17,8 @@ export default function QuizzesPage() {
   const [user, setUser] = useState<any>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [isLoadingManual, setIsLoadingManual] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
   const [selectedFaculty, setSelectedFaculty] = useState<string>("");
   const [selectedBatch, setSelectedBatch] = useState<string>("");
@@ -205,6 +207,7 @@ export default function QuizzesPage() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       const res = await fetch("/api/quiz/schedule", {
         method: "PUT",
@@ -227,6 +230,8 @@ export default function QuizzesPage() {
       }
     } catch (e) {
       Swal.fire("Error", "Rescheduling failed", "error");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -240,11 +245,18 @@ export default function QuizzesPage() {
     });
 
     if (confirm.isConfirmed) {
-      const res = await fetch(`/api/quiz?fileName=${encodeURIComponent(fileName)}`, { method: "DELETE" });
-      const data = await res.json();
-      if (data.isSuccess) {
-        Swal.fire("Deleted", "Quiz file deleted successfully", "success");
-        refetchQuizzes();
+      setIsDeleting(fileName);
+      try {
+        const res = await fetch(`/api/quiz?fileName=${encodeURIComponent(fileName)}`, { method: "DELETE" });
+        const data = await res.json();
+        if (data.isSuccess) {
+          Swal.fire("Deleted", "Quiz file deleted successfully", "success");
+          refetchQuizzes();
+        }
+      } catch (e) {
+        Swal.fire("Error", "Failed to delete quiz", "error");
+      } finally {
+        setIsDeleting(null);
       }
     }
   };
@@ -500,8 +512,14 @@ export default function QuizzesPage() {
                 </div>
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
-                <button type="button" onClick={() => { setViewMode("list"); setSelectedFileForSchedule(null); setFormErrors({}); }} className="btn-secondary" style={{ minWidth: "120px", height: "46px" }}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ minWidth: "140px", height: "46px" }}>Update Schedule</button>
+                <button type="button" disabled={isSubmitting} onClick={() => { setViewMode("list"); setSelectedFileForSchedule(null); setFormErrors({}); }} className="btn-secondary" style={{ minWidth: "120px", height: "46px" }}>Cancel</button>
+                <button type="submit" disabled={isSubmitting} className="btn-primary" style={{ minWidth: "140px", height: "46px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                  {isSubmitting ? (
+                    <Loader2 size={18} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                  ) : (
+                    "Update Schedule"
+                  )}
+                </button>
               </div>
             </form>
           ) : (
@@ -530,8 +548,14 @@ export default function QuizzesPage() {
                 <CustomFileUpload label="Select Questions File" fileName={selectedUploadFile?.name || ""} onChange={(file) => setSelectedUploadFile(file)} required error={formErrors.file} />
               </div>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
-                <button type="button" onClick={() => { setViewMode("list"); setFormErrors({}); }} className="btn-secondary" style={{ minWidth: "120px", height: "46px" }}>Cancel</button>
-                <button type="submit" className="btn-primary" style={{ minWidth: "140px", height: "46px" }}>Upload Exam</button>
+                <button type="button" disabled={isLoadingManual} onClick={() => { setViewMode("list"); setFormErrors({}); }} className="btn-secondary" style={{ minWidth: "120px", height: "46px" }}>Cancel</button>
+                <button type="submit" disabled={isLoadingManual} className="btn-primary" style={{ minWidth: "140px", height: "46px", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                  {isLoadingManual ? (
+                    <Loader2 size={18} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                  ) : (
+                    "Upload Exam"
+                  )}
+                </button>
               </div>
             </form>
           )}
@@ -657,12 +681,16 @@ export default function QuizzesPage() {
                         {(user?.role === "admin" || user?.role === "faculty") && (
                           <td style={{ padding: "16px 24px", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                             <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                              <button onClick={() => handleOpenScheduleModal(file)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>
+                              <button onClick={() => handleOpenScheduleModal(file)} disabled={isDeleting !== null} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>
                                 <Calendar size={14} />
                                 Reschedule
                               </button>
-                              <button onClick={() => handleDeleteQuizFile(file.fileName)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}>
-                                <Trash2 size={14} />
+                              <button onClick={() => handleDeleteQuizFile(file.fileName)} disabled={isDeleting !== null} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}>
+                                {isDeleting === file.fileName ? (
+                                  <Loader2 size={14} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                                ) : (
+                                  <Trash2 size={14} />
+                                )}
                                 Delete
                               </button>
                             </div>

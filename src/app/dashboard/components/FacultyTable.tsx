@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo } from "react";
-import { Edit3, Trash2 } from "lucide-react";
+import { Edit3, Trash2, Loader2 } from "lucide-react";
 
 interface FacultyTableProps {
   faculties: any[];
@@ -15,6 +15,7 @@ interface FacultyTableProps {
   setPage: (page: number) => void;
   itemsPerPage: number;
   renderPagination: (currentPage: number, totalItems: number, setPage: (p: number) => void) => React.ReactNode;
+  isDeleting?: string | null;
 }
 
 export const FacultyTable = memo(({
@@ -29,6 +30,7 @@ export const FacultyTable = memo(({
   setPage,
   itemsPerPage,
   renderPagination,
+  isDeleting = null,
 }: FacultyTableProps) => {
   return (
     <div style={{ width: "100%" }}>
@@ -71,12 +73,16 @@ export const FacultyTable = memo(({
                     </td>
                     <td style={{ padding: "16px 24px", textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
                       <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                        <button onClick={() => onEdit(f)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>
+                        <button onClick={() => onEdit(f)} disabled={isDeleting !== null} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--primary))", borderColor: "rgba(var(--primary), 0.2)" }}>
                           <Edit3 size={14} />
                           Edit
                         </button>
-                        <button onClick={() => onDelete(f._id)} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}>
-                          <Trash2 size={14} />
+                        <button onClick={() => onDelete(f._id)} disabled={isDeleting !== null} className="btn-secondary" style={{ display: "inline-flex", alignItems: "center", gap: "4px", padding: "6px 10px", fontSize: "12px", height: "auto", color: "hsl(var(--danger))", borderColor: "rgba(var(--danger), 0.2)" }}>
+                          {isDeleting === f._id ? (
+                            <Loader2 size={14} className="animate-spin" style={{ animation: "spin 1s linear infinite" }} />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
                           Delete
                         </button>
                       </div>

@@ -35,24 +35,40 @@ export default function DashboardLayout({ children, activeTab }: DashboardLayout
       setIsCheckingAuth(false);
     }
 
-    fetch("/api/auth/profile")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.isSuccess && data.user) {
-          setUser(data.user);
-          sessionStorage.setItem("auth_user", JSON.stringify(data.user));
-        } else {
+    const verifyAuth = () => {
+      fetch("/api/auth/profile")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.isSuccess && data.user) {
+            setUser((currentUser) => {
+              if (currentUser && currentUser.role !== data.user.role) {
+                // Role changed in another tab, reload to apply correct layout/routing
+                window.location.reload();
+              }
+              return data.user;
+            });
+            sessionStorage.setItem("auth_user", JSON.stringify(data.user));
+          } else {
+            sessionStorage.removeItem("auth_user");
+            window.location.href = "/";
+          }
+        })
+        .catch(() => {
           sessionStorage.removeItem("auth_user");
-          router.push("/");
-        }
-      })
-      .catch(() => {
-        sessionStorage.removeItem("auth_user");
-        router.push("/");
-      })
-      .finally(() => {
-        setIsCheckingAuth(false);
-      });
+          window.location.href = "/";
+        })
+        .finally(() => {
+          setIsCheckingAuth(false);
+        });
+    };
+
+    verifyAuth();
+
+    // Sync session across tabs when this tab is refocused
+    window.addEventListener("focus", verifyAuth);
+    return () => {
+      window.removeEventListener("focus", verifyAuth);
+    };
   }, [router]);
 
   useEffect(() => {
